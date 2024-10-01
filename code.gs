@@ -24,8 +24,9 @@ async function region(domainNameTo) {
   }
 }
 
-async function verifyDomain(fromDomain, messageid) {
-  let reg = region(fromDomain);
+async function verifyDomain(fromDomain, messageid,region) {
+  
+  let reg = region
 
   let globalUrl;
   if (reg === "ap-southeast-1") {
@@ -36,10 +37,10 @@ async function verifyDomain(fromDomain, messageid) {
     globalUrl = "44dgkpf1cb";
   }
 
-  console.log("message in encoding =", encodeURIComponent(messageid), "from domain", fromDomain);
+  console.log("message in encoding =", encodeURIComponent(messageid), "from domain", fromDomain,"url dlobal",globalUrl,"region",reg);
 
   let res = UrlFetchApp.fetch(
-    `https://${globalUrl}.execute-api.us-east-1.amazonaws.com/admindomainsgoogle?domain=${fromDomain}&messageId=${encodeURIComponent(messageid)}`,
+    `https://${globalUrl}.execute-api.${reg}.amazonaws.com/admindomainsgoogle?domain=${fromDomain}&messageId=${encodeURIComponent(messageid)}`,
     {
       method: "get",
       headers: { "content-Type": "application/json" },
@@ -82,13 +83,13 @@ async function HomePage(e) {
     builder.addSection(CardService.newCardSection().addWidget(reportButton));
   }
 
-  if (e.messageMetadata) {
+  
     builder.setFixedFooter(CardService.newFixedFooter()
       .setPrimaryButton(CardService.newTextButton()
         .setText('Onboarding Tutorial')
         .setDisabled(false)
         .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))));
-  }
+  
 
   var card = builder.build();
   return card;
@@ -172,7 +173,7 @@ async function handleStep1(e) {
     console.log("this is region", reg, "domain", domainNameTo);
 
     try {
-      const isVerifiedDomain = await verifyDomain(fromDomain, messageId);
+      const isVerifiedDomain = await verifyDomain(fromDomain, messageId,reg);
       console.log("this is region", reg, "domain", domainNameTo, "message id", messageId, "verify domain", isVerifiedDomain, "from domain", fromDomain);
 
       if (isVerifiedDomain) {
