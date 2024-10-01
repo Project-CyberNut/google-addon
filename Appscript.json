@@ -1,0 +1,53 @@
+{
+  "timeZone": "Asia/Karachi",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/gmail.modify"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Cybernut Reporting Tool",
+      "logoUrl": "https://lh3.googleusercontent.com/-0tsHbiHxHQ0/Zj-brUtyRTI/AAAAAAAAAAM/EgnD6SB8t4wFmD-x8v6fso1ea1DIBPCRwCNcBGAsYHQ/s400/cyberNut-logo-32x32.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "HomePage",
+        "enabled": true
+      },
+      "layoutProperties": {
+        "primaryColor": "#354CF0",
+        "secondaryColor": "#354CF0"
+      }
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "HomePage"
+        }
+      ]
+    }
+  },
+  "urlFetchWhitelist": [
+    "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion",
+    "https://k3g591je54.execute-api.us-east-1.amazonaws.com/getemail",
+    "https://b4nzi83qm2.execute-api.ap-southeast-1.amazonaws.com/getemail",
+    "https://dej7cfclm9.execute-api.eu-central-1.amazonaws.com/getemail",
+    "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/eventdispatcher",
+    "https://rmlq7e7vh7.execute-api.ap-southeast-1.amazonaws.com/eventdispatcher",
+    "https://skzb4w2nje.execute-api.eu-central-1.amazonaws.com/eventdispatcher",
+    "https://telmnzu55i.execute-api.eu-central-1.amazonaws.com/admindomainsgoogle",
+    "https://vsqdkxcc8d.execute-api.ap-southeast-1.amazonaws.com/admindomainsgoogle",
+    "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/admindomainsgoogle"
+
+
+
+
+  ]
+}
+
