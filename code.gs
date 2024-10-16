@@ -1,4 +1,4 @@
-var heading = CardService.newTextParagraph().setText("<b>Cybernut Reporting Tool</b>");
+var heading = CardService.newTextParagraph().setText("<b>Cybernut Reporting Tool   </b> v 2.2.0");
 var alreadyClickedHeading = CardService.newTextParagraph().setText("<b>WAIT - Did you accidentally click on something in this email?</b>");
 
 async function region(domainNameTo) {
