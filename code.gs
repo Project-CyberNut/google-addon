@@ -1,12 +1,19 @@
-var heading = CardService.newTextParagraph().setText("<b>Cybernut Reporting Tool   </b> v 2.2.0");
-var alreadyClickedHeading = CardService.newTextParagraph().setText("<b>WAIT - Did you accidentally click on something in this email?</b>");
+var heading = CardService.newTextParagraph().setText(
+  "<b>Cybernut Reporting Tool   </b> v 2.2.0"
+);
+var alreadyClickedHeading = CardService.newTextParagraph().setText(
+  "<b>WAIT - Did you accidentally click on something in this email?</b>"
+);
 
 async function region(domainNameTo) {
   try {
-    let res = UrlFetchApp.fetch(`https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=${domainNameTo}`, {
-      method: "get",
-      headers: { "content-Type": "application/json" }
-    });
+    let res = UrlFetchApp.fetch(
+      `https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=${domainNameTo}`,
+      {
+        method: "get",
+        headers: { "content-Type": "application/json" },
+      }
+    );
 
     const statusCode = res.getResponseCode();
     const content = res.getContentText();
@@ -14,19 +21,18 @@ async function region(domainNameTo) {
 
     return {
       aws_region: jsonResponse.aws_region,
-      status_code: statusCode
+      status_code: statusCode,
     };
   } catch (error) {
     return {
-      aws_region: 'us-east-1',
-      status_code: error.responseCode || 'unknown'
+      aws_region: "us-east-1",
+      status_code: error.responseCode || "unknown",
     };
   }
 }
 
-async function verifyDomain(fromDomain, messageid,region) {
-  
-  let reg = region
+async function verifyDomain(fromDomain, messageid, region) {
+  let reg = region;
 
   let globalUrl;
   if (reg === "ap-southeast-1") {
@@ -37,10 +43,21 @@ async function verifyDomain(fromDomain, messageid,region) {
     globalUrl = "44dgkpf1cb";
   }
 
-  console.log("message in encoding =", encodeURIComponent(messageid), "from domain", fromDomain,"url dlobal",globalUrl,"region",reg);
+  console.log(
+    "message in encoding =",
+    encodeURIComponent(messageid),
+    "from domain",
+    fromDomain,
+    "url dlobal",
+    globalUrl,
+    "region",
+    reg
+  );
 
   let res = UrlFetchApp.fetch(
-    `https://${globalUrl}.execute-api.${reg}.amazonaws.com/admindomainsgoogle?domain=${fromDomain}&messageId=${encodeURIComponent(messageid)}`,
+    `https://${globalUrl}.execute-api.${reg}.amazonaws.com/admindomainsgoogle?domain=${fromDomain}&messageId=${encodeURIComponent(
+      messageid
+    )}`,
     {
       method: "get",
       headers: { "content-Type": "application/json" },
@@ -51,45 +68,55 @@ async function verifyDomain(fromDomain, messageid,region) {
   return jsonResponse.messageExists;
 }
 
-let defaultMessageForThirdStep = 'Thank you, you will hear back from IT if you need to take any further action.';
+let defaultMessageForThirdStep =
+  "Thank you, you will hear back from IT if you need to take any further action.";
 let adminMessageForThirdStep = "";
 
 function extractDomainFromEmail(email) {
   var atIndex = email.indexOf("@");
   if (atIndex !== -1) {
     var domain = email.substring(atIndex + 1);
-    domain = domain.replace(/[<>]/g, '');
+    domain = domain.replace(/[<>]/g, "");
     return domain;
   } else {
-    return null; 
+    return null;
   }
 }
 
 async function HomePage(e) {
   var reportButton = CardService.newTextButton()
-    .setText('Report Email')
-    .setTextButtonStyle(CardService.TextButtonStyle.FILLED).setBackgroundColor("#D83025")
+    .setText("Report Email")
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor("#D83025")
     .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
 
   var builder = CardService.newCardBuilder();
-  builder.addSection(CardService.newCardSection()
-    .setCollapsible(false)
-    .setNumUncollapsibleWidgets(1)
-    .addWidget(heading)
-    .addWidget(CardService.newTextParagraph().setText('Suspicious content or sender? Report it for further analysis.'))
+  builder.addSection(
+    CardService.newCardSection()
+      .setCollapsible(false)
+      .setNumUncollapsibleWidgets(1)
+      .addWidget(heading)
+      .addWidget(
+        CardService.newTextParagraph().setText(
+          "Suspicious content or sender? Report it for further analysis."
+        )
+      )
   );
-  
+
   if (e) {
     builder.addSection(CardService.newCardSection().addWidget(reportButton));
   }
 
-  
-    builder.setFixedFooter(CardService.newFixedFooter()
-      .setPrimaryButton(CardService.newTextButton()
-        .setText('Onboarding Tutorial')
+  builder.setFixedFooter(
+    CardService.newFixedFooter().setPrimaryButton(
+      CardService.newTextButton()
+        .setText("Onboarding Tutorial")
         .setDisabled(false)
-        .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))));
-  
+        .setOnClickAction(
+          CardService.newAction().setFunctionName("openLearnAddonLink")
+        )
+    )
+  );
 
   var card = builder.build();
   return card;
@@ -101,26 +128,28 @@ async function handleStep1(e) {
 
   var checkboxGroup = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.CHECK_BOX)
-    .setFieldName('selectedItems')
+    .setFieldName("selectedItems")
     .addItem("I replied to the email", "I replied to the email", false)
-    .addItem('I downloaded a file', 'I downloaded a file', false)
-    .addItem('I opened an attachment', 'I opened an attachment', false)
-    .addItem('I visited a link', 'I visited a link', false)
-    .addItem('I entered my password', 'I entered my password', false)
-    .addItem('I forwarded the email', 'I forwarded the email', false)
-    .addItem('I logged into a page', 'I logged into a page', false)
-    .addItem('None of the above', 'None of the above', false);
+    .addItem("I downloaded a file", "I downloaded a file", false)
+    .addItem("I opened an attachment", "I opened an attachment", false)
+    .addItem("I visited a link", "I visited a link", false)
+    .addItem("I entered my password", "I entered my password", false)
+    .addItem("I forwarded the email", "I forwarded the email", false)
+    .addItem("I logged into a page", "I logged into a page", false)
+    .addItem("None of the above", "None of the above", false);
 
   var reportButton = CardService.newTextButton()
-    .setText('Report Email')
+    .setText("Report Email")
     .setOnClickAction(CardService.newAction().setFunctionName("handleStep2"))
-    .setTextButtonStyle(CardService.TextButtonStyle.FILLED).setBackgroundColor("#D83025");
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor("#D83025");
 
   if (!e.messageMetadata.messageId) {
     var cardBuilder = CardService.newCardBuilder();
     var section = CardService.newCardSection();
-    var textWidget = CardService.newTextParagraph()
-      .setText('Please open the email and look for the button in the top left corner. Click on it to go back and find the report button.');
+    var textWidget = CardService.newTextParagraph().setText(
+      "Please open the email and look for the button in the top left corner. Click on it to go back and find the report button."
+    );
 
     section.addWidget(textWidget);
     cardBuilder.addSection(section);
@@ -145,14 +174,16 @@ async function handleStep1(e) {
   console.log("domain to", domainNameTo);
 
   let domainNameFromSenderIndexAtTheRate = sender.indexOf("@");
-  let domainNameFromSender = sender.slice(domainNameFromSenderIndexAtTheRate + 1);
+  let domainNameFromSender = sender.slice(
+    domainNameFromSenderIndexAtTheRate + 1
+  );
   domainNameFromSender = sender.replace(">", "");
 
   var fromEmailAddress;
   if (e.messageMetadata) {
     var shortMessageId = e.messageMetadata.messageId;
     var emailData = GmailApp.getMessageById(shortMessageId);
-    var headers = emailData.getRawContent().match(/^Message-ID: (.+)$/mi);
+    var headers = emailData.getRawContent().match(/^Message-ID: (.+)$/im);
     var messageId = extractIdFromHeader(headers[1]);
     console.log("messageid", messageId);
 
@@ -173,35 +204,65 @@ async function handleStep1(e) {
     console.log("this is region", reg, "domain", domainNameTo);
 
     try {
-      const isVerifiedDomain = await verifyDomain(fromDomain, messageId,reg);
-      console.log("this is region", reg, "domain", domainNameTo, "message id", messageId, "verify domain", isVerifiedDomain, "from domain", fromDomain);
+      const isVerifiedDomain = await verifyDomain(fromDomain, messageId, reg);
+      console.log(
+        "this is region",
+        reg,
+        "domain",
+        domainNameTo,
+        "message id",
+        messageId,
+        "verify domain",
+        isVerifiedDomain,
+        "from domain",
+        fromDomain
+      );
 
       if (isVerifiedDomain) {
         var encodedMessageId = encodeURIComponent(messageId);
-        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${
+          reg ? reg : "us-east-1"
+        }`;
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
       } else {
-        const thread = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
+        const thread = GmailApp.getMessageById(
+          e.messageMetadata.messageId
+        ).getThread();
         const labels = thread.isInInbox();
 
         if (labels) {
           var builder = CardService.newCardBuilder();
-          builder.addSection(CardService.newCardSection()
-            .setCollapsible(false)
-            .setNumUncollapsibleWidgets(1)
-            .addWidget(alreadyClickedHeading)
-            .addWidget(CardService.newTextParagraph().setText('<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>'))
-            .addWidget(CardService.newTextParagraph().setText("Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "))
-            .addWidget(checkboxGroup)
-            .addWidget(reportButton));
+          builder.addSection(
+            CardService.newCardSection()
+              .setCollapsible(false)
+              .setNumUncollapsibleWidgets(1)
+              .addWidget(alreadyClickedHeading)
+              .addWidget(
+                CardService.newTextParagraph().setText(
+                  "<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"
+                )
+              )
+              .addWidget(
+                CardService.newTextParagraph().setText(
+                  "Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "
+                )
+              )
+              .addWidget(checkboxGroup)
+              .addWidget(reportButton)
+          );
 
-          builder.setFixedFooter(CardService.newFixedFooter()
-            .setPrimaryButton(CardService.newTextButton()
-              .setText('Onboarding Tutorial')
-              .setDisabled(false)
-              .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))));
+          builder.setFixedFooter(
+            CardService.newFixedFooter().setPrimaryButton(
+              CardService.newTextButton()
+                .setText("Onboarding Tutorial")
+                .setDisabled(false)
+                .setOnClickAction(
+                  CardService.newAction().setFunctionName("openLearnAddonLink")
+                )
+            )
+          );
 
           var card = builder.build();
           return card;
@@ -236,7 +297,7 @@ async function handleStep2(e) {
   var sender = mailMessage.getFrom();
   var body = mailMessage.getPlainBody();
   var bodyHtml = mailMessage.getBody();
-  const checkedValues = selectedItems.join(', ');
+  const checkedValues = selectedItems.join(", ");
   var editedBody = checkedValues;
   var to = mailMessage.getTo();
 
@@ -247,37 +308,48 @@ async function handleStep2(e) {
   }
 
   function extractFirstDomain(to) {
-    var emails = to.split(',');
+    var emails = to.split(",");
 
     for (var i = 0; i < emails.length; i++) {
       var email = emails[i];
-      var emailAddress = email.match(/<(.+)>/) ? email.match(/<(.+)>/)[1] : email.trim();
+      var emailAddress = email.match(/<(.+)>/)
+        ? email.match(/<(.+)>/)[1]
+        : email.trim();
       var domainNameIndex = emailAddress.indexOf("@");
       if (domainNameIndex !== -1) {
-        var domainName = emailAddress.slice(domainNameIndex + 1).replace(/[^a-zA-Z0-9.-]/g, "");
+        var domainName = emailAddress
+          .slice(domainNameIndex + 1)
+          .replace(/[^a-zA-Z0-9.-]/g, "");
         if (domainName) {
           return domainName;
         }
       }
     }
-    return '';
+    return "";
   }
 
   let domainNameTo = extractFirstDomain(to);
-  let emailAddressSender = sender.match(/<(.+)>/) ? sender.match(/<(.+)>/)[1] : sender;
+  let emailAddressSender = sender.match(/<(.+)>/)
+    ? sender.match(/<(.+)>/)[1]
+    : sender;
   let domainNameFromSenderIndexAtTheRate = emailAddressSender.indexOf("@");
-  let fromEmailAddress = emailAddressSender.slice(domainNameFromSenderIndexAtTheRate + 1).replace(/[^a-zA-Z0-9.-]/g, "");
+  let fromEmailAddress = emailAddressSender
+    .slice(domainNameFromSenderIndexAtTheRate + 1)
+    .replace(/[^a-zA-Z0-9.-]/g, "");
   let domainNameFromSender = fromEmailAddress;
 
-  var headers = mailMessage.getRawContent().match(/^Message-ID: (.+)$/mi);
+  var headers = mailMessage.getRawContent().match(/^Message-ID: (.+)$/im);
   var messageIdOrg = headers ? extractIdFromHeader(headers[1]) : null;
 
   const awsRegion = await region(domainNameTo);
   const reg = awsRegion.aws_region;
 
   console.log("region response code", reg, domainNameTo);
-  
-  var emailAddressTo = awsRegion.status_code === 200 ? extractFirstEmail(to) : Session.getActiveUser().getEmail();
+
+  var emailAddressTo =
+    awsRegion.status_code === 200
+      ? extractFirstEmail(to)
+      : Session.getActiveUser().getEmail();
 
   try {
     let adminUrl;
@@ -295,83 +367,111 @@ async function handleStep2(e) {
 
     function getDomainOrFallback(domainNameTo, adminUrl, reg) {
       try {
-        let response = UrlFetchApp.fetch(`https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`, {
-          method: "post",
-          headers: {
-            "content-Type": "application/json",
-          },
-          payload: JSON.stringify({
-            domain: domainNameTo
-          })
-        });
+        let response = UrlFetchApp.fetch(
+          `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`,
+          {
+            method: "post",
+            headers: {
+              "content-Type": "application/json",
+            },
+            payload: JSON.stringify({
+              domain: domainNameTo,
+            }),
+          }
+        );
         return response;
       } catch (error) {
         var email = Session.getActiveUser().getEmail();
-        var currentDomain = email.split('@')[1];
+        var currentDomain = email.split("@")[1];
         console.log("current domain", currentDomain, adminUrl, reg);
-        let response = UrlFetchApp.fetch(`https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`, {
-          method: "post",
-          headers: {
-            "content-Type": "application/json",
-          },
-          payload: JSON.stringify({
-            domain: currentDomain
-          })
-        });
+        let response = UrlFetchApp.fetch(
+          `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`,
+          {
+            method: "post",
+            headers: {
+              "content-Type": "application/json",
+            },
+            payload: JSON.stringify({
+              domain: currentDomain,
+            }),
+          }
+        );
         return response;
       }
     }
 
-    let suspeciousEmail = JSON.parse(getDomainOrFallback(domainNameTo, adminUrl, reg));
+    let suspeciousEmail = JSON.parse(
+      getDomainOrFallback(domainNameTo, adminUrl, reg)
+    );
     console.log("forward suspicious email", suspeciousEmail);
 
     adminMessageForThirdStep = suspeciousEmail.CONFIRMATION_MESSAGE;
 
-    let resss = UrlFetchApp.fetch(`https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`, {
-      method: "post",
-      headers: {
-        "content-Type": "application/json",
-      },
-      payload: JSON.stringify({
-        domain: domainNameTo,
-        fromAddress: fromEmailAddress,
-        destination: emailAddressTo,
-        action: "FORWARD_SUSPICIOUS_EMAIL",
-        message_id: messageIdOrg,
-        emailtemplate: bodyHtml,
-        provider: "google",
-        triggerBoth: true,
-        email: suspeciousEmail.FORWARD_SUSPICIOUS_EMAIL,
-        subject: subject,
-        body: editedBody,
-        source: "gmail"
-      })
-    });
+    let resss = UrlFetchApp.fetch(
+      `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`,
+      {
+        method: "post",
+        headers: {
+          "content-Type": "application/json",
+        },
+        payload: JSON.stringify({
+          domain: domainNameTo,
+          fromAddress: fromEmailAddress,
+          destination: emailAddressTo,
+          action: "FORWARD_SUSPICIOUS_EMAIL",
+          message_id: messageIdOrg,
+          emailtemplate: bodyHtml,
+          provider: "google",
+          triggerBoth: true,
+          email: suspeciousEmail.FORWARD_SUSPICIOUS_EMAIL,
+          subject: subject,
+          body: editedBody,
+          source: "gmail",
+        }),
+      }
+    );
   } catch (error) {
     Logger.log(error);
   }
 
   var builder = CardService.newCardBuilder();
-  builder.addSection(CardService.newCardSection()
-    .setCollapsible(false)
-    .setNumUncollapsibleWidgets(1)
-    .addWidget(heading)
-    .addWidget(CardService.newTextParagraph()
-      .setText(adminMessageForThirdStep.length > 0 ? adminMessageForThirdStep : defaultMessageForThirdStep))
+  builder.addSection(
+    CardService.newCardSection()
+      .setCollapsible(false)
+      .setNumUncollapsibleWidgets(1)
+      .addWidget(heading)
+      .addWidget(
+        CardService.newTextParagraph().setText(
+          adminMessageForThirdStep.length > 0
+            ? adminMessageForThirdStep
+            : defaultMessageForThirdStep
+        )
+      )
   );
 
-  const isVerifiedDomain = await verifyDomain(domainNameFromSender, reg, messageId);
+  const isVerifiedDomain = await verifyDomain(
+    domainNameFromSender,
+    messageId,
+    reg
+  );
   console.log("is verified", isVerifiedDomain, "messageid", messageId);
 
-  const threads = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
+  const threads = GmailApp.getMessageById(
+    e.messageMetadata.messageId
+  ).getThread();
   const check_Inbox = threads.isInInbox();
-  
+
   if (check_Inbox) {
-    builder.setFixedFooter(CardService.newFixedFooter()
-      .setPrimaryButton(CardService.newTextButton()
-        .setText('Onboarding Tutorial')
-        .setDisabled(false)
-        .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))));
+    builder.setFixedFooter(
+      CardService.newFixedFooter().setPrimaryButton(
+        CardService.newTextButton()
+          .setText("Onboarding Tutorial")
+          .setDisabled(false)
+          .setOnClickAction(
+            CardService.newAction().setFunctionName("openLearnAddonLink")
+          )
+      )
+    );
   }
 
   var card = builder.build();
@@ -380,37 +480,45 @@ async function handleStep2(e) {
 
 function redirect() {
   try {
-    let redirectApi = UrlFetchApp.fetch("https://pyslc6a88h.execute-api.us-east-1.amazonaws.com/email", {
-      method: "post",
-      headers: {
-        "content-Type": "application/json",
-      },
-      payload: JSON.stringify({
-        "source": "linked"
-      })
-    });
+    let redirectApi = UrlFetchApp.fetch(
+      "https://pyslc6a88h.execute-api.us-east-1.amazonaws.com/email",
+      {
+        method: "post",
+        headers: {
+          "content-Type": "application/json",
+        },
+        payload: JSON.stringify({
+          source: "linked",
+        }),
+      }
+    );
   } catch (error) {
     Logger.log(error);
   }
 }
 
 function generateUUID() {
-  var template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+  var template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
   return template.replace(/[xy]/g, function (c) {
-    var r = Math.random() * 16 | 0;
-    var v = c == 'x' ? r : (r & 0x3 | 0x8);
+    var r = (Math.random() * 16) | 0;
+    var v = c == "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
 
 async function openLearnAddonLink() {
   let email = Session.getActiveUser().getEmail();
-  let currentDomain = email.split('@')[1];
+  let currentDomain = email.split("@")[1];
   var reg = await region(currentDomain);
   console.log("region", reg.aws_region, "current domain", currentDomain);
   return CardService.newActionResponseBuilder()
-    .setOpenLink(CardService.newOpenLink()
-      .setUrl(`https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${reg.aws_region}&email=${email}&tracker=demo`))
+    .setOpenLink(
+      CardService.newOpenLink().setUrl(
+        `https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${
+          reg.aws_region
+        }&email=${email}&tracker=demo`
+      )
+    )
     .build();
 }
 
@@ -420,27 +528,3 @@ function extractIdFromHeader(header) {
     return matches[1];
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
