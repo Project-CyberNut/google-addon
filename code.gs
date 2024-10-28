@@ -356,10 +356,10 @@ async function handleStep2(e) {
     let serviceUrl;
     if (reg === "ap-southeast-1") {
       adminUrl = "b4nzi83qm2";
-      serviceUrl = "rmlq7e7vh7";
+      serviceUrl = "vahgicl5qh";
     } else if (reg === "eu-central-1") {
       adminUrl = "dej7cfclm9";
-      serviceUrl = "skzb4w2nje";
+      serviceUrl = "p3shdnpenc";
     } else {
       adminUrl = "k3g591je54";
       serviceUrl = "560ef3pt4j";
