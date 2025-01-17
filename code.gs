@@ -159,7 +159,7 @@ async function handleStep1(e) {
   } else {
     var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
     var sender = mailMessage.getFrom();
-    var to = mailMessage.getTo();
+    var to = Session.getActiveUser().getEmail()
     var timestamp = new Date();
     timestamp = timestamp.getTime();
   }
@@ -281,7 +281,7 @@ async function handleStep2(e) {
   var accessToken = e.messageMetadata.accessToken;
   GmailApp.setCurrentMessageAccessToken(accessToken);
 
-  var fromDomain = e.parameters.fromDomain;
+  // var fromDomain = e.parameters.fromDomain;
   var selectedItemsValues = e.formInputs.selectedItems;
   var selectedItems = [];
 
@@ -295,17 +295,17 @@ async function handleStep2(e) {
   var mailMessage = GmailApp.getMessageById(messageId);
   var subject = mailMessage.getSubject();
   var sender = mailMessage.getFrom();
-  var body = mailMessage.getPlainBody();
+  // var body = mailMessage.getPlainBody();
   var bodyHtml = mailMessage.getBody();
   const checkedValues = selectedItems.join(", ");
   var editedBody = checkedValues;
-  var to = mailMessage.getTo();
+  var to = Session.getActiveUser().getEmail()
 
-  function extractFirstEmail(to) {
-    const emailPattern = /[\w.-]+@[\w.-]+\.\w+/;
-    let match = emailPattern.exec(to);
-    return match ? match[0] : null;
-  }
+  // function extractFirstEmail(to) {
+  //   const emailPattern = /[\w.-]+@[\w.-]+\.\w+/;
+  //   let match = emailPattern.exec(to);
+  //   return match ? match[0] : null;
+  // }
 
   function extractFirstDomain(to) {
     var emails = to.split(",");
@@ -346,10 +346,8 @@ async function handleStep2(e) {
 
   console.log("region response code", reg, domainNameTo);
 
-  var emailAddressTo =
-    awsRegion.status_code === 200
-      ? extractFirstEmail(to)
-      : Session.getActiveUser().getEmail();
+  var emailAddressTo = Session.getActiveUser().getEmail()
+    
 
   try {
     let adminUrl;
@@ -416,7 +414,7 @@ async function handleStep2(e) {
         },
         payload: JSON.stringify({
           domain: domainNameTo,
-          fromAddress: fromEmailAddress,
+          fromAddress: emailAddressSender,
           destination: emailAddressTo,
           action: "FORWARD_SUSPICIOUS_EMAIL",
           message_id: messageIdOrg,
@@ -478,24 +476,24 @@ async function handleStep2(e) {
   return card;
 }
 
-function redirect() {
-  try {
-    let redirectApi = UrlFetchApp.fetch(
-      "https://pyslc6a88h.execute-api.us-east-1.amazonaws.com/email",
-      {
-        method: "post",
-        headers: {
-          "content-Type": "application/json",
-        },
-        payload: JSON.stringify({
-          source: "linked",
-        }),
-      }
-    );
-  } catch (error) {
-    Logger.log(error);
-  }
-}
+// function redirect() {
+//   try {
+//     let redirectApi = UrlFetchApp.fetch(
+//       "https://pyslc6a88h.execute-api.us-east-1.amazonaws.com/email",
+//       {
+//         method: "post",
+//         headers: {
+//           "content-Type": "application/json",
+//         },
+//         payload: JSON.stringify({
+//           source: "linked",
+//         }),
+//       }
+//     );
+//   } catch (error) {
+//     Logger.log(error);
+//   }
+// }
 
 function generateUUID() {
   var template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
