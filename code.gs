@@ -272,9 +272,13 @@ async function handleStep1(e) {
           const thread = GmailApp.getMessageById(
             e.messageMetadata.messageId
           ).getThread();
-          const labels = thread.isInInbox();
+          console.log("thread", thread);
+          const labels = thread.isInSpam();
 
           if (labels) {
+            const res_value = await handleStep2(e);
+            return res_value;
+          } else {
             var builder = CardService.newCardBuilder();
             builder.addSection(
               CardService.newCardSection()
@@ -310,9 +314,6 @@ async function handleStep1(e) {
 
             var card = builder.build();
             return card;
-          } else {
-            const res_value = await handleStep2(e);
-            return res_value;
           }
         }
       } catch (error) {
@@ -451,6 +452,7 @@ async function handleStep2(e) {
           subject: subject,
           body: editedBody,
           source: "gmail",
+          // Reported_By:emailAddressTo
         }),
       }
     );
@@ -463,12 +465,14 @@ async function handleStep2(e) {
         .setNumUncollapsibleWidgets(1)
         .addWidget(heading)
         .addWidget(
-          CardService.newTextParagraph().setText(
-            adminMessageForThirdStep.length > 0
-              ? adminMessageForThirdStep
-              : defaultMessageForThirdStep
-          )
+          CardService.newTextParagraph().setText(defaultMessageForThirdStep)
         )
+    );
+    console.log(
+      "adminMessageForThirdStep",
+      adminMessageForThirdStep,
+      "defaultMessageForThirdStep",
+      defaultMessageForThirdStep
     );
 
     const isVerifiedDomain = await verifyDomain(
