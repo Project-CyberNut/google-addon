@@ -36,20 +36,15 @@
     }
   },
   "urlFetchWhitelist": [
-    "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion",
-    "https://k3g591je54.execute-api.us-east-1.amazonaws.com/getemail",
-    "https://b4nzi83qm2.execute-api.ap-southeast-1.amazonaws.com/getemail",
-    "https://dej7cfclm9.execute-api.eu-central-1.amazonaws.com/getemail",
+    "https://aqh9osmw28.execute-api.us-east-1.amazonaws.com/admindomainsgoogle",
+    "https://43v1dfp0n3.execute-api.ap-southeast-1.amazonaws.com/admindomainsgoogle",
+    "https://napssgoubc.execute-api.eu-central-1.amazonaws.com/admindomainsgoogle",
+    "https://bn1b2bI6xk.execute-api.us-east-1.amazonaws.com/getemail",
+    "https://9fkxy40dfk.execute-api.ap-southeast-1.amazonaws.com/getemail",
+    "https://h9j9uzoo9h.execute-api.eu-central-1.amazonaws.com/getemail",
     "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/eventdispatcher",
     "https://vahgicl5qh.execute-api.ap-southeast-1.amazonaws.com/eventdispatcher",
     "https://p3shdnpenc.execute-api.eu-central-1.amazonaws.com/eventdispatcher",
-    "https://telmnzu55i.execute-api.eu-central-1.amazonaws.com/admindomainsgoogle",
-    "https://vsqdkxcc8d.execute-api.ap-southeast-1.amazonaws.com/admindomainsgoogle",
-    "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/admindomainsgoogle",
     "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew"
-
-
-
-
   ]
 }

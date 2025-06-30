@@ -125,10 +125,11 @@ async function verifyDomain(fromDomain, messageid, region) {
 // Helper function to get the global URL based on region
 function getGlobalUrl(region) {
   let mapping = {
-    "ap-southeast-1": "vsqdkxcc8d",
-    "eu-central-1": "telmnzu55i",
+    "us-east-1": "aqh9osmw28",
+    "ap-southeast-1": "43v1dfp0n3",
+    "eu-central-1": "napssgoubc",
   };
-  return mapping[region] || "44dgkpf1cb"; // Default URL
+  return mapping[region] || "aqh9osmw28"; // Default URL
 }
 
 async function EventDispatcherApi(payload, serviceUrl, reg) {
@@ -481,21 +482,27 @@ async function handleStep2(e) {
 
     console.log("Region:", reg, "Recipient Domain:", domainNameTo);
 
-    // Prepare admin and service URLs based on the region
-    let adminUrl, serviceUrl;
-    if (reg === "ap-southeast-1") {
-      adminUrl = "b4nzi83qm2";
-      serviceUrl = "vahgicl5qh";
-    } else if (reg === "eu-central-1") {
-      adminUrl = "dej7cfclm9";
-      serviceUrl = "p3shdnpenc";
-    } else {
-      adminUrl = "k3g591je54";
+    // Prepare admin, service, and global URLs based on the region
+    let adminUrl, serviceUrl, globalUrl;
+    if (reg === "us-east-1") {
+      adminUrl = "bn1b2bI6xk";
       serviceUrl = "560ef3pt4j";
+      globalUrl = "aqh9osmw28";
+    } else if (reg === "ap-southeast-1") {
+      adminUrl = "9fkxy40dfk";
+      serviceUrl = "vahgicl5qh";
+      globalUrl = "43v1dfp0n3";
+    } else if (reg === "eu-central-1") {
+      adminUrl = "h9j9uzoo9h";
+      serviceUrl = "p3shdnpenc";
+      globalUrl = "napssgoubc";
+    } else {
+      adminUrl = "bn1b2bI6xk";
+      serviceUrl = "560ef3pt4j";
+      globalUrl = "aqh9osmw28";
     }
 
     // Fetch suspicious email confirmation or fallback
-
     let suspiciousEmailResponse = await getDomainOrFallback(
       domainNameTo,
       adminUrl,
