@@ -4,12 +4,42 @@ var heading = CardService.newTextParagraph().setText(
 var alreadyClickedHeading = CardService.newTextParagraph().setText(
   "<b>WAIT - Did you accidentally click on something in this email?</b>"
 );
+
+/**
+ * CENTRALIZED CONFIGURATION
+ * This function holds all the correct API Gateway endpoints.
+ * @param {string} region The AWS region (e.g., "us-east-1").
+ * @return {object} An object containing the adminUrl, globalUrl, and serviceUrl.
+ */
+function getApiEndpoints(region) {
+  const endpoints = {
+    "us-east-1": {
+      adminUrl: "bn1b2bl6xk",   // From admin-api-stack-t-admin-api
+      globalUrl: "aqh9osmw28",  // From global-stack-t-api
+      serviceUrl: "hhszpv1cxd"   // UPDATED: From reported-threats-t-api
+    },
+    "ap-southeast-1": {
+      adminUrl: "9fkxy40dfk",
+      globalUrl: "43v1dfp0n3",
+      serviceUrl: "jktofxjij2"   // UPDATED: From reported-threats-t-api
+    },
+    "eu-central-1": {
+      adminUrl: "h9j9uzoo9h",
+      globalUrl: "napssgoubc",
+      serviceUrl: "5b38mlbr9e"   // UPDATED: From reported-threats-t-api
+    }
+  };
+  // Return the specific region's endpoints, or default to us-east-1
+  return endpoints[region] || endpoints["us-east-1"];
+}
+
+
 async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
-
-  // console.log("event time ",now.toLocaleString(),"html body",htmlbody)
   try {
-    const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
+    // NOTE: This URL uses a specific API ID not found in the screenshots.
+    // Assuming this is a separate, correctly configured error reporting API.
+    const url = `https://hhszpv1cxd.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
     const payload = {
       id: Session.getActiveUser().getEmail(),
       body: error,
@@ -30,16 +60,17 @@ async function callErrorReportingApi(error, htmlbody) {
 
 async function region(domainNameTo) {
   try {
+    // NOTE: This URL uses a specific API ID not found in the screenshots.
+    // Assuming this is a separate, correctly configured region lookup API.
     const res = UrlFetchApp.fetch(
       `https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=${domainNameTo}`,
       {
         method: "get",
         headers: { "Content-Type": "application/json" },
-        muteHttpExceptions: false, // Default behavior (throws on non-2xx)
+        muteHttpExceptions: false,
       }
     );
 
-    // Explicit status code check for 200
     const statusCode = res.getResponseCode();
     if (statusCode !== 200) {
       throw new Error(`API request failed with status ${statusCode}`);
@@ -54,8 +85,6 @@ async function region(domainNameTo) {
     };
   } catch (error) {
     await callErrorReportingApi(error, " ");
-
-    // Extract status code from error message if available
     const errorStatusCode =
       error.message.match(/status (\d+)/)?.[1] ||
       error.responseCode ||
@@ -68,13 +97,13 @@ async function region(domainNameTo) {
   }
 }
 
-async function verifyDomain(fromDomain, messageid, region) {
+async function verifyDomain(fromDomain, messageid, region, globalUrl) {
   const maxRetries = 3;
   const initialDelay = 1000;
   let lastError;
 
   try {
-    const globalUrl = getGlobalUrl(region);
+    // NOTE: The stage name (e.g., /prod/) might be needed here if not using the $default stage.
     const apiUrl = `https://${globalUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?domain=${fromDomain}&messageId=${encodeURIComponent(
       messageid
     )}`;
@@ -90,10 +119,9 @@ async function verifyDomain(fromDomain, messageid, region) {
         const response = UrlFetchApp.fetch(apiUrl, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
-          muteHttpExceptions: false, // Throw on non-2xx responses
+          muteHttpExceptions: false,
         });
 
-        // Explicit status code check
         const statusCode = response.getResponseCode();
         if (statusCode !== 200) {
           throw new Error(`API returned status ${statusCode}`);
@@ -104,7 +132,6 @@ async function verifyDomain(fromDomain, messageid, region) {
       } catch (error) {
         lastError = error;
         console.warn(`Attempt ${attempt} failed: ${error.message}`);
-
         if (attempt < maxRetries) {
           const delay = initialDelay * Math.pow(2, attempt);
           console.log(`Retrying in ${delay}ms...`);
@@ -112,7 +139,6 @@ async function verifyDomain(fromDomain, messageid, region) {
         }
       }
     }
-
     throw new Error(
       `All ${maxRetries} attempts failed. Last error: ${lastError.message}`
     );
@@ -122,19 +148,10 @@ async function verifyDomain(fromDomain, messageid, region) {
   }
 }
 
-// Helper function to get the global URL based on region
-function getGlobalUrl(region) {
-  let mapping = {
-    "us-east-1": "aqh9osmw28",
-    "ap-southeast-1": "43v1dfp0n3",
-    "eu-central-1": "napssgoubc",
-  };
-  return mapping[region] || "aqh9osmw28"; // Default URL
-}
 
 async function EventDispatcherApi(payload, serviceUrl, reg) {
+  // NOTE: The stage name (e.g., /prod/) might be needed here if not using the $default stage.
   const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`;
-
   const options = {
     method: "post",
     contentType: "application/json",
@@ -153,8 +170,8 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
 }
 
 async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
+  // NOTE: The stage name (e.g., /prod/) might be needed here if not using the $default stage.
   const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`;
-
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     headers: { "Content-Type": "application/json" },
@@ -198,7 +215,6 @@ async function HomePage(e) {
     if (e.gmail) {
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
       let bodyHtml = mailMessage.getBody();
-      // console.log("html body",bodyHtml)
       await callErrorReportingApi("Home function run perfectly", bodyHtml);
     } else {
       await callErrorReportingApi(
@@ -223,10 +239,8 @@ async function HomePage(e) {
     );
 
     var card = builder.build();
-
     return card;
   } catch (error) {
-    // console.log(e)
     await callErrorReportingApi(error.stack, " ");
     throw error;
   }
@@ -240,9 +254,6 @@ async function handleStep1(e) {
   }
 
   try {
-    // var accessToken = e.messageMetadata.accessToken;
-    // GmailApp.setCurrentMessageAccessToken(accessToken);
-
     var checkboxGroup = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.CHECK_BOX)
       .setFieldName("selectedItems")
@@ -267,46 +278,31 @@ async function handleStep1(e) {
       var textWidget = CardService.newTextParagraph().setText(
         "Please open the email and look for the button in the top left corner. Click on it to go back and find the report button."
       );
-
       section.addWidget(textWidget);
       cardBuilder.addSection(section);
-
-      var card = cardBuilder.build();
-      return card;
-    } else {
-      var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
-      var sender = mailMessage.getFrom();
-      var to = Session.getActiveUser().getEmail();
-      var timestamp = new Date();
-      timestamp = timestamp.getTime();
+      return cardBuilder.build();
     }
+
+    var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
+    var sender = mailMessage.getFrom();
+    var to = Session.getActiveUser().getEmail();
     const domainNameTo = to.split("@")[1];
-    console.log("domain to", domainNameTo);
-
-    let domainNameFromSenderIndexAtTheRate = sender.indexOf("@");
-    let domainNameFromSender = sender.slice(
-      domainNameFromSenderIndexAtTheRate + 1
-    );
-    domainNameFromSender = sender.replace(">", "");
-
     var fromEmailAddress;
+
     if (e.messageMetadata) {
       var shortMessageId = e.messageMetadata.messageId;
       var emailData = GmailApp.getMessageById(shortMessageId);
       var rawContent = emailData.getRawContent();
-
-      // Updated regex to extract Message-ID
       var headers = rawContent.match(/^Message-ID:\s*<?([^<>]+)>?/im);
+      var messageId = "";
 
       if (headers && headers[1]) {
-        var fullMessageId = headers[1].trim(); // Get the full Message-ID
-        var messageId = fullMessageId.split("@")[0]; // Extract before '@'
-
+        var fullMessageId = headers[1].trim();
+        messageId = fullMessageId.split("@")[0];
         console.log("Extracted Message ID Before '@':", messageId);
       } else {
         console.log("Failed to extract Message-ID from headers.");
       }
-      // var messageId = getFullMessageId(e)
 
       if (sender.includes("<")) {
         var regex = /<([^>]+)>/;
@@ -315,51 +311,26 @@ async function handleStep1(e) {
           fromEmailAddress = match[1];
         }
       } else {
-        fromEmailAddress = domainNameFromSender;
+        fromEmailAddress = sender;
       }
 
       var atIndex = fromEmailAddress.indexOf("@");
+      var fromDomain = "";
       if (atIndex !== -1) {
-        var domain = fromEmailAddress.substring(atIndex + 1);
-        domain = domain.replace(/[<>]/g, "");
+        fromDomain = fromEmailAddress.substring(atIndex + 1).replace(/[<>]/g, "");
       }
-
-      var fromDomain = domain;
-
+      
       const awsRegion = await region(domainNameTo);
       const reg = awsRegion.aws_region;
+      const endpoints = getApiEndpoints(reg);
+      
       await callErrorReportingApi("Region" + " " + reg, bodyHtml);
-      console.log(
-        "this is region",
-        reg,
-        "domain",
-        domainNameTo,
-        "fromEmailAddress",
-        fromEmailAddress,
-        "fromDomain",
-        fromDomain,
-        "messageId",
-        messageId
-      );
 
       try {
-        const isVerifiedDomain = await verifyDomain(fromDomain, messageId, reg);
+        const isVerifiedDomain = await verifyDomain(fromDomain, messageId, reg, endpoints.globalUrl);
         await callErrorReportingApi(
           "Is Verified Domain" + " " + isVerifiedDomain,
           bodyHtml
-        );
-
-        console.log(
-          "this is region",
-          reg,
-          "domain",
-          domainNameTo,
-          "message id",
-          messageId,
-          "verify domain",
-          isVerifiedDomain,
-          "from domain",
-          fromDomain
         );
 
         if (isVerifiedDomain === true) {
@@ -371,15 +342,10 @@ async function handleStep1(e) {
             .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
             .build();
         } else if (isVerifiedDomain === false) {
-          const thread = GmailApp.getMessageById(
-            e.messageMetadata.messageId
-          ).getThread();
-          // console.log("thread",thread)
+          const thread = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
           const labels = thread.isInSpam();
-
           if (labels) {
-            const res_value = await handleStep2(e);
-            return res_value;
+            return await handleStep2(e);
           } else {
             var builder = CardService.newCardBuilder();
             builder.addSection(
@@ -387,35 +353,20 @@ async function handleStep1(e) {
                 .setCollapsible(false)
                 .setNumUncollapsibleWidgets(1)
                 .addWidget(alreadyClickedHeading)
-                .addWidget(
-                  CardService.newTextParagraph().setText(
-                    "<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"
-                  )
-                )
-                .addWidget(
-                  CardService.newTextParagraph().setText(
-                    "Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "
-                  )
-                )
+                .addWidget(CardService.newTextParagraph().setText("<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"))
+                .addWidget(CardService.newTextParagraph().setText("Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "))
                 .addWidget(checkboxGroup)
                 .addWidget(reportButton)
             );
-
             builder.setFixedFooter(
               CardService.newFixedFooter().setPrimaryButton(
                 CardService.newTextButton()
                   .setText("Onboarding Tutorial")
                   .setDisabled(false)
-                  .setOnClickAction(
-                    CardService.newAction().setFunctionName(
-                      "openLearnAddonLink"
-                    )
-                  )
+                  .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))
               )
             );
-
-            var card = builder.build();
-            return card;
+            return builder.build();
           }
         }
       } catch (error) {
@@ -424,10 +375,8 @@ async function handleStep1(e) {
       }
     }
   } catch (e) {
-    // console.log(e.stack)
     await callErrorReportingApi(e.stack, bodyHtml);
     throw e;
-    // const error_value = error
   }
 }
 
@@ -438,11 +387,6 @@ async function handleStep2(e) {
     bodyHtml = mail ? mail.getBody() : " ";
   }
   try {
-    // Extract the access token to interact with Gmail API
-    // var accessToken = e.messageMetadata.accessToken;
-    // GmailApp.setCurrentMessageAccessToken(accessToken);
-
-    // Extract selected items from the user input
     var selectedItemsValues = e.formInputs.selectedItems;
     var selectedItems = [];
     if (selectedItemsValues) {
@@ -451,69 +395,28 @@ async function handleStep2(e) {
       }
     }
 
-    // Retrieve the email details
     var messageId = e.messageMetadata.messageId;
     var mailMessage = GmailApp.getMessageById(messageId);
     var subject = mailMessage.getSubject();
     var sender = mailMessage.getFrom();
-    bodyHtml = mailMessage.getBody();
     const checkedValues = selectedItems.join(", ");
     var editedBody = checkedValues;
     var to = Session.getActiveUser().getEmail();
-    var to_domain_logged_user = to.split("@")[1];
-
-    let domainNameTo = to_domain_logged_user;
-
-    // Extract the message ID from headers
+    var domainNameTo = to.split("@")[1];
     var headers = mailMessage.getRawContent().match(/^Message-ID: (.+)$/im);
+    var messageIdOrg = headers && headers[1] ? headers[1].trim() : null;
 
-    var messageIdOrg = headers[1] ? headers[1] : null;
-    console.log(
-      "messageId handle step 2 for event dispatcher",
-      messageIdOrg,
-      "sender",
-      sender
-    );
-
-    // Get the AWS region for the recipient domain
     const awsRegion = await region(domainNameTo);
     const reg = awsRegion.aws_region;
+    const { adminUrl, serviceUrl } = getApiEndpoints(reg);
+    
     await callErrorReportingApi("Aws region" + " " + reg, bodyHtml);
-
     console.log("Region:", reg, "Recipient Domain:", domainNameTo);
 
-    // Prepare admin, service, and global URLs based on the region
-    let adminUrl, serviceUrl, globalUrl;
-    if (reg === "us-east-1") {
-      adminUrl = "bn1b2bI6xk";
-      serviceUrl = "560ef3pt4j";
-      globalUrl = "aqh9osmw28";
-    } else if (reg === "ap-southeast-1") {
-      adminUrl = "9fkxy40dfk";
-      serviceUrl = "vahgicl5qh";
-      globalUrl = "43v1dfp0n3";
-    } else if (reg === "eu-central-1") {
-      adminUrl = "h9j9uzoo9h";
-      serviceUrl = "p3shdnpenc";
-      globalUrl = "napssgoubc";
-    } else {
-      adminUrl = "bn1b2bI6xk";
-      serviceUrl = "560ef3pt4j";
-      globalUrl = "aqh9osmw28";
-    }
-
-    // Fetch suspicious email confirmation or fallback
-    let suspiciousEmailResponse = await getDomainOrFallback(
-      domainNameTo,
-      adminUrl,
-      reg
-    );
-
+    let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
     console.log("Suspicious email details:", suspiciousEmailResponse);
     await callErrorReportingApi(
-      "forward suspicious email" +
-        " " +
-        suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
+      "forward suspicious email" + " " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
       bodyHtml
     );
 
@@ -534,22 +437,15 @@ async function handleStep2(e) {
       source: "gmail",
     };
 
-    const EventDispatcherApiCall = await EventDispatcherApi(
-      payload,
-      serviceUrl,
-      reg
-    );
+    const EventDispatcherApiCall = await EventDispatcherApi(payload, serviceUrl, reg);
 
-    // Prepare the response card
     var builder = CardService.newCardBuilder();
     builder.addSection(
       CardService.newCardSection()
         .setCollapsible(false)
         .setNumUncollapsibleWidgets(1)
         .addWidget(heading)
-        .addWidget(
-          CardService.newTextParagraph().setText(defaultMessageForThirdStep)
-        )
+        .addWidget(CardService.newTextParagraph().setText(defaultMessageForThirdStep))
     );
     console.log("EventDispatcherApiCall", EventDispatcherApiCall);
     await callErrorReportingApi(
@@ -557,9 +453,7 @@ async function handleStep2(e) {
       bodyHtml
     );
 
-    const threads = GmailApp.getMessageById(
-      e.messageMetadata.messageId
-    ).getThread();
+    const threads = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
     const checkInbox = threads.isInInbox();
 
     if (checkInbox) {
@@ -568,21 +462,17 @@ async function handleStep2(e) {
           CardService.newTextButton()
             .setText("Onboarding Tutorial")
             .setDisabled(false)
-            .setOnClickAction(
-              CardService.newAction().setFunctionName("openLearnAddonLink")
-            )
+            .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))
         )
       );
     }
-
-    var card = builder.build();
-    return card;
+    return builder.build();
   } catch (e) {
     await callErrorReportingApi(e.stack, bodyHtml);
-
     throw e;
   }
 }
+
 function generateUUID() {
   var template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
   return template.replace(/[xy]/g, function (c) {
@@ -597,14 +487,6 @@ async function openLearnAddonLink() {
     let email = Session.getActiveUser().getEmail();
     let currentDomain = email.split("@")[1];
     var reg = await region(currentDomain);
-    console.log(
-      "region",
-      reg.aws_region,
-      "current domain",
-      currentDomain,
-      "generateUUID()",
-      generateUUID()
-    );
     await callErrorReportingApi("Dummy onboarding" + " " + reg.aws_region, " ");
     return CardService.newActionResponseBuilder()
       .setOpenLink(
@@ -626,3 +508,6 @@ function extractIdFromHeader(header) {
     return matches[1];
   }
 }
+
+
+

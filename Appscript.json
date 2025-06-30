@@ -10,7 +10,6 @@
     "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.readonly"
-   
   ],
   "addOns": {
     "common": {
@@ -36,15 +35,16 @@
     }
   },
   "urlFetchWhitelist": [
-    "https://aqh9osmw28.execute-api.us-east-1.amazonaws.com/admindomainsgoogle",
-    "https://43v1dfp0n3.execute-api.ap-southeast-1.amazonaws.com/admindomainsgoogle",
-    "https://napssgoubc.execute-api.eu-central-1.amazonaws.com/admindomainsgoogle",
-    "https://bn1b2bI6xk.execute-api.us-east-1.amazonaws.com/getemail",
-    "https://9fkxy40dfk.execute-api.ap-southeast-1.amazonaws.com/getemail",
-    "https://h9j9uzoo9h.execute-api.eu-central-1.amazonaws.com/getemail",
-    "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/eventdispatcher",
-    "https://vahgicl5qh.execute-api.ap-southeast-1.amazonaws.com/eventdispatcher",
-    "https://p3shdnpenc.execute-api.eu-central-1.amazonaws.com/eventdispatcher",
-    "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew"
+    "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/",
+    "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/",
+    "https://aqh9osmw28.execute-api.us-east-1.amazonaws.com/",
+    "https://bn1b2bl6xk.execute-api.us-east-1.amazonaws.com/",
+    "https://hhszpv1cxd.execute-api.us-east-1.amazonaws.com/",
+    "https://43v1dfp0n3.execute-api.ap-southeast-1.amazonaws.com/",
+    "https://9fkxy40dfk.execute-api.ap-southeast-1.amazonaws.com/",
+    "https://jktofxjij2.execute-api.ap-southeast-1.amazonaws.com/",
+    "https://5b38mlbr9e.execute-api.eu-central-1.amazonaws.com/",
+    "https://h9j9uzoo9h.execute-api.eu-central-1.amazonaws.com/",
+    "https://napssgoubc.execute-api.eu-central-1.amazonaws.com/"
   ]
 }
