@@ -75,7 +75,7 @@ function foundReportUrl(e) {
   const emailBody = message.getBody();
   // The encoded version of "https://www.cybernut-k12.com/report"
   // We only need a key part of it to find the link.
-  const encodedTarget = "https%3A%2F%2Fwww.cybernut-k12.com%2F";
+  const encodedTarget = "www.cybernut-k12.com";
 
   // The String.includes() method is the simplest way to find this text.
   if (emailBody.includes(encodedTarget)) {
