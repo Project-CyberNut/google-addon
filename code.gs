@@ -72,11 +72,7 @@ async function region(domainNameTo) {
    };
  } catch (error) {
    await callErrorReportingApi(error, " ");
-
-
-
-
-   // Extract status code from error message if available
+// Extract status code from error message if available
    const errorStatusCode =
      error.message.match(/status (\d+)/)?.[1] ||
      error.responseCode ||
@@ -84,7 +80,7 @@ async function region(domainNameTo) {
 
 
 
-
+   
    return {
      aws_region: "us-east-1",
      status_code: errorStatusCode,
@@ -99,6 +95,7 @@ function foundReportUrl(e) {
   // The encoded version of "https://www.cybernut-k12.com/report"
   // We only need a key part of it to find the link.
   const encodedTarget = 'www.cybernut-k12.com';
+  console.log(encodedTarget,"this is the cybernut url to find",emailBody ,"this is email body")
 
   // The String.includes() method is the simplest way to find this text.
   if (emailBody.includes(encodedTarget)) {
@@ -268,6 +265,27 @@ let defaultMessageForThirdStep =
  "Thank you, you will hear back from IT if you need to take any further action.";
 let adminMessageForThirdStep = "";
 
+function buildErrorCard() {
+  var cardBuilder = CardService.newCardBuilder();
+  var section = CardService.newCardSection();
+  var textWidget = CardService.newTextParagraph().setText(
+    "There was an error in completing your action, for escalation / faster resolution you can contact us at support@cybertnut.com"
+  );
+  
+  // Add a close button that navigates back to home
+  var closeButton = CardService.newTextButton()
+    .setText("Close")
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor("#4285F4")
+    .setOnClickAction(CardService.newAction().setFunctionName("HomePage"));
+  
+  section.addWidget(textWidget);
+  section.addWidget(closeButton);
+  cardBuilder.addSection(section);
+  var card = cardBuilder.build();
+  return card;
+}
+
 
 
 
@@ -339,7 +357,7 @@ async function HomePage(e) {
  } catch (error) {
    // console.log(e)
    await callErrorReportingApi(error.stack, " ");
-   throw error;
+   return buildErrorCard();
  }
 }
 
@@ -357,12 +375,6 @@ async function handleStep1(e) {
 
 
  try {
-   // var accessToken = e.messageMetadata.accessToken;
-   // GmailApp.setCurrentMessageAccessToken(accessToken);
-
-
-
-
    var checkboxGroup = CardService.newSelectionInput()
      .setType(CardService.SelectionInputType.CHECK_BOX)
      .setFieldName("selectedItems")
@@ -407,14 +419,14 @@ async function handleStep1(e) {
      return card;
    }
    else {
-     // var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
-     // // var sender = mailMessage.getFrom();
+     var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
+     var sender = mailMessage.getFrom();
      var to = Session.getActiveUser().getEmail();
      var timestamp = new Date();
      timestamp = timestamp.getTime();
    }
    const domainNameTo = to.split("@")[1];
-   console.log("domain to", domainNameTo);
+   console.log("domain to", domainNameTo,"sender" , sender , sender.includes("support@cybernut.com"));
 
 
 
@@ -423,6 +435,7 @@ async function handleStep1(e) {
      var shortMessageId = e.messageMetadata.messageId;
      var emailData = GmailApp.getMessageById(shortMessageId);
      const message_google = emailData.getId();
+     
      const messageIdOrg = emailData.getHeader("Message-ID")
      const StatusMessage = messageIdOrg.split("@")[0].replace('<', '')
      console.log("message_google ",message_google,"messageIdOrg",messageIdOrg.split("@")[0].replace('<', '') )
@@ -453,18 +466,25 @@ async function handleStep1(e) {
 
 
      try {
-       const isVerifiedDomain = await verifyDomain(message_google , StatusMessage, reg,to,false);
+       let isVerifiedDomain = false
+       try {
+       isVerifiedDomain = await verifyDomain(message_google , StatusMessage, reg,to,false);
        await callErrorReportingApi(
          "Is Verified Domain" + " " + isVerifiedDomain,
          bodyHtml
        );
-      let linkurl = ""
-      console.log("linkurl" ,foundReportUrl(e))
-      if (isVerifiedDomain === false) {
-        linkurl = foundReportUrl(e)
-        console.log("linkurl" ,linkurl)
+       }
+       catch (e){
+         await callErrorReportingApi(e.stack, bodyHtml);
 
-      }
+       }
+  
+       
+      let linkurl = false
+      linkurl = foundReportUrl(e)
+      console.log("linkurl" ,linkurl)
+
+    
 
 
 
@@ -473,7 +493,8 @@ async function handleStep1(e) {
       
 
 
-       if (isVerifiedDomain=== true || linkurl === true) {
+       if (sender.includes("support@cybernut.com")|| linkurl === true || isVerifiedDomain  == true) {
+
          var encodedMessageId = encodeURIComponent(StatusMessage);
          var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${
            reg ? reg : "us-east-1"
@@ -542,13 +563,14 @@ async function handleStep1(e) {
        }
      } catch (error) {
        await callErrorReportingApi(error, bodyHtml);
-       throw new Error("Api Didnt worked", error);
+      //  throw new Error("Api Didnt worked", error);
+       return buildErrorCard();
      }
    }
  } catch (e) {
    // console.log(e.stack)
    await callErrorReportingApi(e.stack, bodyHtml);
-   throw e;
+   return buildErrorCard();
    // const error_value = error
  }
 }
@@ -790,11 +812,7 @@ console.log("messageIdOrg",messageIdOrg.split("@")[0].replace('<', ''),"messageI
    return card;
  } catch (e) {
    await callErrorReportingApi(e.stack, bodyHtml);
-
-
-
-
-   throw e;
+   return buildErrorCard();
  }
 }
 function generateUUID() {
@@ -834,6 +852,7 @@ async function openLearnAddonLink() {
      .build();
  } catch (e) {
    await callErrorReportingApi(e.stack, " ");
+   return buildErrorCard();
  }
 }
 
@@ -846,6 +865,9 @@ function extractIdFromHeader(header) {
    return matches[1];
  }
 }
+
+
+
 
 
 
