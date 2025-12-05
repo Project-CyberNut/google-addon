@@ -766,6 +766,7 @@ console.log("messageIdOrg",messageIdOrg.split("@")[0].replace('<', ''),"messageI
        }
        catch (e){
          await callErrorReportingApi(e.stack, bodyHtml);
+         isVerifiedDomain = true
 
        }
    if (isVerifiedDomain === true) {
