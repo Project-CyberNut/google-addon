@@ -1,4 +1,4 @@
-var version = "v 2.3.3"
+var version = "v 2.3.5"
 var heading = CardService.newTextParagraph().setText(
  `<b>Cybernut Reporting Tool   </b>  ${version}`
 );
@@ -755,7 +755,19 @@ console.log("messageIdOrg",messageIdOrg.split("@")[0].replace('<', ''),"messageI
  // This will give you the API-compatible ID (often in hex format).
  const message_google = message.getId();
    console.log("message_google ",message_google )
-   const isVerifiedDomain = await verifyDomain(message_google, messageIdOrg.split("@")[0].replace('<', ''), reg,to,true)
+
+  let isVerifiedDomain = false
+       try {
+       isVerifiedDomain = await verifyDomain(message_google, messageIdOrg.split("@")[0].replace('<', ''), reg,to,true)
+       await callErrorReportingApi(
+         "Is Verified Domain" + " " + isVerifiedDomain,
+         bodyHtml
+       );
+       }
+       catch (e){
+         await callErrorReportingApi(e.stack, bodyHtml);
+
+       }
    if (isVerifiedDomain === true) {
      // 3. Move the email to trash
    var message_movetotrash = GmailApp.getMessageById(messageId)
