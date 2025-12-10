@@ -105,6 +105,101 @@ function foundReportUrl(e) {
   return false; // Did not find it.
 }
 
+
+
+function cybernutDomains(senderDomain) {
+    if (!senderDomain) {
+      return false;
+    }
+    
+    // Convert to lowercase for case-insensitive comparison
+    const domain = senderDomain.toLowerCase();
+    
+    // List of suspicious domains
+    const suspiciousDomains = [
+      'k12districtnotification.com',
+      'google-notice-alert.com',
+      'google-k12-support.com',
+      'google-k12-alert.com',
+      'seesaw-services.com',
+      'zoom-securelogin.com',
+      'google-signin-support.com',
+      'adobe-platform.com',
+      'google-signinsupport.com',
+      'ixl-services.com',
+      'google-k12.com',
+      'nearpodportal.com',
+      'google-report.com',
+      'brainpop-mail.com',
+      'download-onedrive.com',
+      'account-teams.com',
+      'kamiportal.com',
+      'outlook365-office.com',
+      'learninga-z-updates.com',
+      'amaz0n-securelogin.com',
+      'dropboxsecure-login.com',
+      'amazingdeals-shopping.com',
+      'amazon-ordertrack.com',
+      'khanacademy-app.com',
+      'box-fileaccess.com',
+      'naviance-mail.com',
+      'box-securelogin.com',
+      'schooltool-services.com',
+      'connect-meetingshub.com',
+      'classlink-online.com',
+      'connect-socials.com',
+      'frontlinealerts.com',
+      'dhl-expressship.com',
+      'newslea-updates.com',
+      'dhl-globaltrack.com',
+      'quizizz-services.com',
+      'docu-signin.com',
+      'docus1gn-verify.com',
+      'canvas-portal.com',
+      'drop-boxlogin.com',
+      'nvisionconnect.com',
+      'powerschool-updates.com',
+      'fastfilesharenow.com',
+      'fastshipping-hub.com',
+      'fed-extracking.com',
+      'upsdelivery-hub.com',
+      'fedex-deliverynow.com',
+      'gimkit-services.com',
+      'g00gle-verify.com',
+      'discoveryedu-platform.com',
+      'global-shiptrack.com',
+      'kahoot-connect.com',
+      'media-socialhub.com',
+      'deltamath-services.com',
+      'micosoft-secure.com',
+      'edpuzzle-online.com',
+      'ms-updatecenter.com',
+      'castlelearning-platform.com',
+      'secure-meetingportal.com',
+      'sharefiles-secure.com',
+      'malwarebytes-notifications.com',
+      'shopnow-discounts.com',
+      'sophos-connect.com',
+      'ups-packagealert.com',
+      'usps-securepackage.com',
+      'usps-trackingportal.com',
+      'shopify-updates.com',
+      'zoom-meetingconnect.com',
+      'walmart-communications.com',
+      'meta-alerts.com',
+      'google-notice.com',
+      'instagram-services.com',
+      'cybernut-k12.com',
+      'tiktok-teams.com',
+      'cybernut.com',
+      'hulu-connect.com',
+      'netflix-updates.com',
+      'schoology-communications.com'
+    ];
+    
+    return suspiciousDomains.includes(domain);
+  }
+
 function getAttachmentIds(messageId) {
  const attachmentIds = [];
   try {
@@ -426,7 +521,7 @@ async function handleStep1(e) {
      timestamp = timestamp.getTime();
    }
    const domainNameTo = to.split("@")[1];
-   console.log("domain to", domainNameTo,"sender" , sender , sender.includes("support@cybernut.com"));
+   console.log("domain to", domainNameTo,"sender" , sender.split("@")[1].replace('>', ''));
 
 
 
@@ -493,7 +588,7 @@ async function handleStep1(e) {
       
 
 
-       if (sender.includes("support@cybernut.com")|| linkurl === true || isVerifiedDomain  == true) {
+       if (cybernutDomains(sender.split("@")[1].replace('>', ''))|| linkurl === true || isVerifiedDomain  == true) {
 
          var encodedMessageId = encodeURIComponent(StatusMessage);
          var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${
