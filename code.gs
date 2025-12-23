@@ -836,7 +836,7 @@ console.log("messageIdOrg",messageIdOrg.split("@")[0].replace('<', ''),"messageI
        .setCollapsible(false)
        .setNumUncollapsibleWidgets(1)
        .addWidget(heading)
-       .addWidget(CardService.newTextParagraph().setText(defaultMessageForThirdStep));
+       .addWidget(CardService.newTextParagraph().setText(suspiciousEmailResponse.CONFIRMATION_MESSAGE? suspiciousEmailResponse.CONFIRMATION_MESSAGE:defaultMessageForThirdStep));
 
 
    const messageIdFromTrigger = e.gmail.messageId;
