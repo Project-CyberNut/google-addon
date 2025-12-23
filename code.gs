@@ -1,4 +1,4 @@
-var version = "v 2.3.5"
+var version = "v 2.3.8"
 var heading = CardService.newTextParagraph().setText(
  `<b>Cybernut Reporting Tool   </b>  ${version}`
 );
