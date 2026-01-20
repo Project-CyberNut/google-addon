@@ -9,9 +9,6 @@ async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
   console.log(`Add on version Cybernut Reporting Tool  ${version}`)
 
-
-
-
   // console.log("event time ",now.toLocaleString(),"html body",htmlbody)
   try {
     const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
@@ -19,8 +16,8 @@ async function callErrorReportingApi(error, htmlbody) {
       id: Session.getActiveUser().getEmail(),
       body: String(error) + ` Add-On Version: ${version}`,
       htmlbody: htmlbody || "",
-
     };
+    console.log('callErrorReportingApi|payload|found!', {payload});
     const options = {
       method: "post",
       headers: { "content-Type": "application/json" },
@@ -48,24 +45,16 @@ async function region(domainNameTo) {
       }
     );
 
-
-
-
     // Explicit status code check for 200
     const statusCode = res.getResponseCode();
     if (statusCode !== 200) {
       throw new Error(`API request failed with status ${statusCode}`);
     }
 
-
-
-
     const content = res.getContentText();
+    console.log('region|content|found!', {content});
     const jsonResponse = JSON.parse(content);
-
-
-
-
+    console.log('region|jsonResponse|found!', {jsonResponse});
     return {
       aws_region: jsonResponse.aws_region,
       status_code: statusCode,
@@ -77,10 +66,7 @@ async function region(domainNameTo) {
       error.message.match(/status (\d+)/)?.[1] ||
       error.responseCode ||
       "unknown";
-
-
-
-
+    console.log('region|errorStatusCode!', {errorStatusCode});
     return {
       aws_region: "us-east-1",
       status_code: errorStatusCode,
@@ -89,9 +75,10 @@ async function region(domainNameTo) {
 }
 
 function foundReportUrl(e) {
+  console.log('foundReportUrl|called!');
   const message = GmailApp.getMessageById(e.gmail.messageId);
   const emailBody = message.getBody();
-
+  console.log('foundReportUrl|emailBody|found| messageId: ', e?.gmail?.messageId);
   // The encoded version of "https://www.cybernut-k12.com/report"
   // We only need a key part of it to find the link.
   const encodedTarget = 'www.cybernut-k12.com';
@@ -196,20 +183,21 @@ function cybernutDomains(senderDomain) {
     'netflix-updates.com',
     'schoology-communications.com'
   ];
-
+  console.log('cybernutDomains|domain|found!', {domain});
   return suspiciousDomains.includes(domain);
 }
 
 function getAttachmentIds(messageId) {
+  console.log('getAttachmentIds|called!');
   const attachmentIds = [];
   try {
     // 1. Get the message using the standard service
     const message = GmailApp.getMessageById(messageId);
-
+    console.log('getAttachmentIds|message|found!', {message});
 
     // 2. Get all attachments from the message
     const attachments = message.getAttachments();
-
+    console.log('getAttachmentIds|attachments|found!', {length: attachments.length});
 
     // 3. Process each attachment
     attachments.forEach(attachment => {
@@ -223,19 +211,22 @@ function getAttachmentIds(messageId) {
 
 
   } catch (e) {
+    console.log('getAttachmentIds|error|caught!', e);
     console.log('Error fetching attachments with GmailApp for messageId %s: %s', messageId, e.toString());
   }
+  console.log('getAttachmentIds|attachmentIds|found!', {length: attachmentIds.length});
   return attachmentIds;
 }
 
 
 async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash) {
+  console.log('verifyDomain|called!');
   try {
     const globalUrl = getGlobalUrl(region); // Assuming this is a helper function you have
     const apiUrl = `https://${globalUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(
       messageid
     )}`;
-
+    console.log('verifyDomain|apiUrl|found!', {apiUrl, sourceid, messageid, region, activeuser, moveToTrash, globalUrl});
 
     console.log(
       `Verifying with Gmail ID: ${sourceid}`,
@@ -266,10 +257,6 @@ async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash
       return jsonResponse.messageExists
     }
 
-
-
-
-
   } catch (error) {
     // If the single attempt fails, report the error and stop
     console.error(`Domain verification failed: ${error.message}`);
@@ -294,10 +281,8 @@ function getGlobalUrl(region) {
 
 
 async function EventDispatcherApi(payload, serviceUrl, reg) {
+  console.log('EventDispatcherApi|called!');
   const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`;
-
-
-
 
   const options = {
     method: "post",
@@ -306,15 +291,13 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
     muteHttpExceptions: true,
   };
 
-
+  console.log('EventDispatcherApi|options|found!', {options});
 
 
   const response = UrlFetchApp.fetch(url, options);
   const code = response.getResponseCode();
 
-
-
-
+  console.log('EventDispatcherApi|code|found!', {code});
   if (code === 200) {
     return response.getContentText();
   } else {
@@ -323,14 +306,9 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
 }
 
 
-
-
 async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
+  console.log('getDomainOrFallback|called!');
   const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`;
-
-
-
-
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     headers: { "Content-Type": "application/json" },
@@ -338,15 +316,11 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
     muteHttpExceptions: true,
   });
 
-
-
-
+  console.log('getDomainOrFallback|response|found!');
   if (response.getResponseCode() === 200) {
+    console.log('getDomainOrFallback|response|200!');
     return JSON.parse(response);
   }
-
-
-
 
   return new Error(
     `API failed. Status: ${response.getResponseCode()} - ${response.getContentText()}`
