@@ -233,10 +233,10 @@ async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash
 // Helper function to get the global URL based on region
 function getGlobalUrl(region) {
   let mapping = {
-    "ap-southeast-1": "vsqdkxcc8d",
-    "eu-central-1": "telmnzu55i",
+    "ap-southeast-1": "9tp2t9h2o2",
+    "eu-central-1": "9v7i6h5197",
   };
-  const url = mapping[region] || "44dgkpf1cb";
+  const url = mapping[region] || "u2o82lbd9f";
   console.log('getGlobalUrl|', { region, url });
   return url;
 }
