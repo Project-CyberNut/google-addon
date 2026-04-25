@@ -200,8 +200,8 @@ function getAttachmentIds(messageId) {
 async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash) {
   console.log('verifyDomain|called!', { sourceid, messageid, region, activeuser, moveToTrash });
   try {
-    const globalUrl = getGlobalUrl(region);
-    const apiUrl = `https://${globalUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}`;
+    const { verifyUrl } = getRegionUrls(region);
+    const apiUrl = `https://${verifyUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}`;
     console.log('verifyDomain|apiUrl|', { apiUrl });
 
     const response = UrlFetchApp.fetch(apiUrl, {
@@ -230,15 +230,15 @@ async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash
 
 
 
-// Helper function to get the global URL based on region
-function getGlobalUrl(region) {
-  let mapping = {
-    "ap-southeast-1": "9tp2t9h2o2",
-    "eu-central-1": "9v7i6h5197",
+// Returns all API Gateway URL prefixes for a given AWS region
+function getRegionUrls(region) {
+  const mapping = {
+    "ap-southeast-1": { verifyUrl: "9tp2t9h2o2", adminUrl: "o1gk4tisc4", serviceUrl: "cllxz8kqk7" },
+    "eu-central-1":   { verifyUrl: "9v7i6h5197", adminUrl: "efmvxrr92j", serviceUrl: "7jww0knq3g" },
   };
-  const url = mapping[region] || "u2o82lbd9f";
-  console.log('getGlobalUrl|', { region, url });
-  return url;
+  const urls = mapping[region] || { verifyUrl: "u2o82lbd9f", adminUrl: "rg0w8yelb6", serviceUrl: "rhqh5ihdvj" };
+  console.log('getRegionUrls|', { region, urls });
+  return urls;
 }
 
 
@@ -549,17 +549,7 @@ async function handleStep2(e) {
     await callErrorReportingApi("Aws region " + reg, bodyHtml);
     console.log('handleStep2|attachments|', { sourceId: messageId, attachments: getAttachmentIds(messageId), messageIdOrg: messageIdOrg.split("@")[0].replace('<', '') });
 
-    let adminUrl, serviceUrl;
-    if (reg === "ap-southeast-1") {
-      adminUrl = "o1gk4tisc4";
-      serviceUrl = "cllxz8kqk7";
-    } else if (reg === "eu-central-1") {
-      adminUrl = "efmvxrr92j";
-      serviceUrl = "7jww0knq3g";
-    } else {
-      adminUrl = "rg0w8yelb6";
-      serviceUrl = "rhqh5ihdvj";
-    }
+    const { adminUrl, serviceUrl } = getRegionUrls(reg);
     console.log('handleStep2|urls|', { adminUrl, serviceUrl });
 
     let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
