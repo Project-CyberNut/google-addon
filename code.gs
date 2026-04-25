@@ -197,8 +197,8 @@ function getAttachmentIds(messageId) {
 }
 
 
-async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash) {
-  console.log('verifyDomain|called!', { sourceid, messageid, region, activeuser, moveToTrash });
+async function verifyDomain(sourceid, messageid, region, activeuser) {
+  console.log('verifyDomain|called!', { sourceid, messageid, region, activeuser });
   try {
     const { verifyUrl } = getRegionUrls(region);
     const apiUrl = `https://${verifyUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}`;
@@ -216,9 +216,8 @@ async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash
     }
 
     const jsonResponse = JSON.parse(response.getContentText());
-    const result = moveToTrash === true ? jsonResponse.trashEmail : jsonResponse.messageExists;
-    console.log('verifyDomain|result|', { moveToTrash, result });
-    return result;
+    console.log('verifyDomain|result|', { jsonResponse });
+    return jsonResponse;
 
   } catch (error) {
     console.error('verifyDomain|failed|', error.message);
@@ -436,10 +435,13 @@ async function handleStep1(e) {
 
     try {
       let isVerifiedDomain = false;
+      let campaignVersion = null;
       try {
-        isVerifiedDomain = await verifyDomain(message_google, StatusMessage, reg, to, false);
-        console.log('handleStep1|isVerifiedDomain|', { isVerifiedDomain });
-        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
+        const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
+        isVerifiedDomain = verifyResponse.messageExists;
+        campaignVersion = verifyResponse.campaignVersion;
+        console.log('handleStep1|verifyResponse|', { isVerifiedDomain, campaignVersion });
+        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain + " campaignVersion " + campaignVersion, bodyHtml);
       } catch (e) {
         await callErrorReportingApi(e.stack, bodyHtml);
       }
@@ -447,9 +449,16 @@ async function handleStep1(e) {
       const linkurl = foundReportUrl(e);
       console.log('handleStep1|linkurl|', { linkurl });
 
-      if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
+      var encodedMessageId = encodeURIComponent(StatusMessage);
+
+      if (campaignVersion === "v2") {
+        var redirectUrl = `https://dev-training.cybernut.com?messageid=${encodedMessageId}&region=${reg}`;
+        console.log('handleStep1|campaignV2|redirecting to dev-training|', { redirectUrl });
+        return CardService.newActionResponseBuilder()
+          .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
+          .build();
+      } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
-        var encodedMessageId = encodeURIComponent(StatusMessage);
         var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
@@ -575,6 +584,7 @@ async function handleStep2(e) {
       rawContent: mailMessage.getRawContent(),
       AttachmentIds: attachmentIds,
       sourceId: messageId,
+       clientType: "google add on"
     };
 
     const EventDispatcherApiCall = await EventDispatcherApi(payload, serviceUrl, reg);
@@ -594,7 +604,8 @@ async function handleStep2(e) {
 
     let isVerifiedDomain = false;
     try {
-      isVerifiedDomain = await verifyDomain(message_google, StatusMessage, reg, to, true);
+      const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
+      isVerifiedDomain = verifyResponse.trashEmail;
       console.log('handleStep2|isVerifiedDomain|', { isVerifiedDomain });
       await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
     } catch (e) {
