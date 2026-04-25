@@ -653,13 +653,13 @@ async function openLearnAddonLink() {
   try {
     let email = Session.getActiveUser().getEmail();
     let currentDomain = email.split("@")[1];
-    var reg = await region(currentDomain);
-    console.log('openLearnAddonLink|', { region: reg.aws_region, currentDomain });
-    await callErrorReportingApi("Dummy onboarding " + reg.aws_region, " ");
+    const { aws_region: reg } = await region(currentDomain);
+    console.log('openLearnAddonLink|', { reg, currentDomain });
+    await callErrorReportingApi("Dummy onboarding " + reg, " ");
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${reg.aws_region}&email=${email}&tracker=demo`
+          `https://userportaldev.cybernut-k12.com/onboardingreport?partitionkey=campaign-43fa9158-c7fd-431e-a10a-e44fc3e1ac05&sortkey=${generateUUID()}&region=${reg}&email=${email}&tracker=demo`
         )
       )
       .build();
