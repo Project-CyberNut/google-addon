@@ -5,11 +5,10 @@ var heading = CardService.newTextParagraph().setText(
 var alreadyClickedHeading = CardService.newTextParagraph().setText(
   "<b>WAIT - Did you accidentally click on something in this email?</b>"
 );
+
 async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
-  console.log(`Add on version Cybernut Reporting Tool  ${version}`)
-
-  // console.log("event time ",now.toLocaleString(),"html body",htmlbody)
+  console.log(`callErrorReportingApi|called| version: ${version}`);
   try {
     const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
     const payload = {
@@ -17,14 +16,14 @@ async function callErrorReportingApi(error, htmlbody) {
       body: String(error) + ` Add-On Version: ${version}`,
       htmlbody: htmlbody || "",
     };
-    console.log('callErrorReportingApi|payload|found!', {payload});
+    console.log('callErrorReportingApi|payload|', { id: payload.id, body: payload.body });
     const options = {
       method: "post",
       headers: { "content-Type": "application/json" },
       payload: JSON.stringify(payload),
     };
     let res = UrlFetchApp.fetch(url, options);
-    console.log("Error reporting API called successfully.", res);
+    console.log('callErrorReportingApi|success|responseCode:', res.getResponseCode());
   } catch (apiError) {
     Logger.log("Failed to call error reporting API: " + apiError.message);
     return new Error(apiError.message);
@@ -35,38 +34,36 @@ async function callErrorReportingApi(error, htmlbody) {
 
 
 async function region(domainNameTo) {
+  console.log('region|called!', { domainNameTo });
   try {
     const res = UrlFetchApp.fetch(
       `https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=${domainNameTo}`,
       {
         method: "get",
         headers: { "Content-Type": "application/json" },
-        muteHttpExceptions: false, // Default behavior (throws on non-2xx)
+        muteHttpExceptions: false,
       }
     );
 
-    // Explicit status code check for 200
     const statusCode = res.getResponseCode();
     if (statusCode !== 200) {
       throw new Error(`API request failed with status ${statusCode}`);
     }
 
     const content = res.getContentText();
-    console.log('region|content|found!', {content});
     const jsonResponse = JSON.parse(content);
-    console.log('region|jsonResponse|found!', {jsonResponse});
+    console.log('region|result|', { aws_region: jsonResponse.aws_region, statusCode });
     return {
       aws_region: jsonResponse.aws_region,
       status_code: statusCode,
     };
   } catch (error) {
     await callErrorReportingApi(error, " ");
-    // Extract status code from error message if available
     const errorStatusCode =
       error.message.match(/status (\d+)/)?.[1] ||
       error.responseCode ||
       "unknown";
-    console.log('region|errorStatusCode!', {errorStatusCode});
+    console.log('region|error|falling back to us-east-1|', { errorStatusCode });
     return {
       aws_region: "us-east-1",
       status_code: errorStatusCode,
@@ -75,21 +72,13 @@ async function region(domainNameTo) {
 }
 
 function foundReportUrl(e) {
-  console.log('foundReportUrl|called!');
+  console.log('foundReportUrl|called!', { messageId: e?.gmail?.messageId });
   const message = GmailApp.getMessageById(e.gmail.messageId);
   const emailBody = message.getBody();
-  console.log('foundReportUrl|emailBody|found| messageId: ', e?.gmail?.messageId);
-  // The encoded version of "https://www.cybernut-k12.com/report"
-  // We only need a key part of it to find the link.
   const encodedTarget = 'www.cybernut-k12.com';
-  console.log(encodedTarget, "this is the cybernut url to find", emailBody, "this is email body")
-
-  // The String.includes() method is the simplest way to find this text.
-  if (emailBody.includes(encodedTarget)) {
-    return true; // Found the encoded link.
-  }
-
-  return false; // Did not find it.
+  const found = emailBody.includes(encodedTarget);
+  console.log('foundReportUrl|result|', { found });
+  return found;
 }
 
 
@@ -99,10 +88,8 @@ function cybernutDomains(senderDomain) {
     return false;
   }
 
-  // Convert to lowercase for case-insensitive comparison
   const domain = senderDomain.toLowerCase();
 
-  // List of suspicious domains
   const suspiciousDomains = [
     'k12districtnotification.com',
     'google-notice-alert.com',
@@ -183,84 +170,59 @@ function cybernutDomains(senderDomain) {
     'netflix-updates.com',
     'schoology-communications.com'
   ];
-  console.log('cybernutDomains|domain|found!', {domain});
-  return suspiciousDomains.includes(domain);
+  const isSuspicious = suspiciousDomains.includes(domain);
+  console.log('cybernutDomains|result|', { domain, isSuspicious });
+  return isSuspicious;
 }
 
 function getAttachmentIds(messageId) {
-  console.log('getAttachmentIds|called!');
+  console.log('getAttachmentIds|called!', { messageId });
   const attachmentIds = [];
   try {
-    // 1. Get the message using the standard service
     const message = GmailApp.getMessageById(messageId);
-    console.log('getAttachmentIds|message|found!', {message});
-
-    // 2. Get all attachments from the message
     const attachments = message.getAttachments();
-    console.log('getAttachmentIds|attachments|found!', {length: attachments.length});
+    console.log('getAttachmentIds|attachments|found!', { count: attachments.length });
 
-    // 3. Process each attachment
     attachments.forEach(attachment => {
       attachmentIds.push({
         filename: attachment.getName(),
         mimeType: attachment.getContentType(),
-        // 4. Get the file content and encode it in Base64
-        // content_base64: Utilities.base64Encode(attachment.getBytes())
       });
     });
-
-
   } catch (e) {
-    console.log('getAttachmentIds|error|caught!', e);
-    console.log('Error fetching attachments with GmailApp for messageId %s: %s', messageId, e.toString());
+    console.log('getAttachmentIds|error|caught!', e.toString());
   }
-  console.log('getAttachmentIds|attachmentIds|found!', {length: attachmentIds.length});
+  console.log('getAttachmentIds|done|', { count: attachmentIds.length });
   return attachmentIds;
 }
 
 
 async function verifyDomain(sourceid, messageid, region, activeuser, moveToTrash) {
-  console.log('verifyDomain|called!');
+  console.log('verifyDomain|called!', { sourceid, messageid, region, activeuser, moveToTrash });
   try {
-    const globalUrl = getGlobalUrl(region); // Assuming this is a helper function you have
-    const apiUrl = `https://${globalUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(
-      messageid
-    )}`;
-    console.log('verifyDomain|apiUrl|found!', {apiUrl, sourceid, messageid, region, activeuser, moveToTrash, globalUrl});
+    const globalUrl = getGlobalUrl(region);
+    const apiUrl = `https://${globalUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}`;
+    console.log('verifyDomain|apiUrl|', { apiUrl });
 
-    console.log(
-      `Verifying with Gmail ID: ${sourceid}`,
-      `Message ID: ${messageid}`,
-      `API URL: ${apiUrl}`
-    );
-
-
-    // Directly attempt to fetch the data once
     const response = UrlFetchApp.fetch(apiUrl, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      muteHttpExceptions: false, // Throw an error on non-2xx responses
+      muteHttpExceptions: false,
     });
 
-
-    // Explicitly check for a successful status code
     const statusCode = response.getResponseCode();
     if (statusCode !== 200) {
       throw new Error(`API returned status ${statusCode}`);
     }
 
-
     const jsonResponse = JSON.parse(response.getContentText());
-    if (moveToTrash === true) {
-      return jsonResponse.trashEmail
-    } else {
-      return jsonResponse.messageExists
-    }
+    const result = moveToTrash === true ? jsonResponse.trashEmail : jsonResponse.messageExists;
+    console.log('verifyDomain|result|', { moveToTrash, result });
+    return result;
 
   } catch (error) {
-    // If the single attempt fails, report the error and stop
-    console.error(`Domain verification failed: ${error.message}`);
-    await callErrorReportingApi(error, " "); // Your custom error reporting
+    console.error('verifyDomain|failed|', error.message);
+    await callErrorReportingApi(error, " ");
     throw new Error(`Domain verification failed: ${error.message}`);
   }
 }
@@ -274,14 +236,16 @@ function getGlobalUrl(region) {
     "ap-southeast-1": "vsqdkxcc8d",
     "eu-central-1": "telmnzu55i",
   };
-  return mapping[region] || "44dgkpf1cb"; // Default URL
+  const url = mapping[region] || "44dgkpf1cb";
+  console.log('getGlobalUrl|', { region, url });
+  return url;
 }
 
 
 
 
 async function EventDispatcherApi(payload, serviceUrl, reg) {
-  console.log('EventDispatcherApi|called!');
+  console.log('EventDispatcherApi|called!', { serviceUrl, reg, domain: payload.domain, action: payload.action });
   const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`;
 
   const options = {
@@ -291,13 +255,10 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
     muteHttpExceptions: true,
   };
 
-  console.log('EventDispatcherApi|options|found!', {options});
-
-
   const response = UrlFetchApp.fetch(url, options);
   const code = response.getResponseCode();
 
-  console.log('EventDispatcherApi|code|found!', {code});
+  console.log('EventDispatcherApi|responseCode|', { code });
   if (code === 200) {
     return response.getContentText();
   } else {
@@ -307,7 +268,7 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
 
 
 async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
-  console.log('getDomainOrFallback|called!');
+  console.log('getDomainOrFallback|called!', { domainNameTo, adminUrl, reg });
   const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`;
   const response = UrlFetchApp.fetch(url, {
     method: "post",
@@ -316,14 +277,14 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
     muteHttpExceptions: true,
   });
 
-  console.log('getDomainOrFallback|response|found!');
-  if (response.getResponseCode() === 200) {
-    console.log('getDomainOrFallback|response|200!');
-    return JSON.parse(response);
+  const statusCode = response.getResponseCode();
+  console.log('getDomainOrFallback|responseCode|', { statusCode });
+  if (statusCode === 200) {
+    return JSON.parse(response.getContentText());
   }
 
   return new Error(
-    `API failed. Status: ${response.getResponseCode()} - ${response.getContentText()}`
+    `API failed. Status: ${statusCode} - ${response.getContentText()}`
   );
 }
 
@@ -338,10 +299,9 @@ function buildErrorCard() {
   var cardBuilder = CardService.newCardBuilder();
   var section = CardService.newCardSection();
   var textWidget = CardService.newTextParagraph().setText(
-    "There was an error in completing your action, for escalation / faster resolution you can contact us at support@cybertnut.com"
+    "There was an error in completing your action, for escalation / faster resolution you can contact us at support@cybernut.com"
   );
 
-  // Add a close button that navigates back to home
   var closeButton = CardService.newTextButton()
     .setText("Close")
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
@@ -351,8 +311,7 @@ function buildErrorCard() {
   section.addWidget(textWidget);
   section.addWidget(closeButton);
   cardBuilder.addSection(section);
-  var card = cardBuilder.build();
-  return card;
+  return cardBuilder.build();
 }
 
 
@@ -366,12 +325,8 @@ async function HomePage(e) {
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setBackgroundColor("#D83025")
       .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
-    console.log('HomePage|reportButton|created!');
-
-
 
     var builder = CardService.newCardBuilder();
-    console.log('HomePage|CardService|builder|section|created!');
     builder.addSection(
       CardService.newCardSection()
         .setCollapsible(false)
@@ -383,31 +338,20 @@ async function HomePage(e) {
           )
         )
     );
-    console.log('HomePage|CardService|builder|section|added!');
+
     if (e.gmail) {
-      console.log('HomePage|CardService|builder|section|e.gmail|true!');
+      console.log('HomePage|email context|messageId:', e.gmail.messageId);
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
-      console.log('HomePage|CardService|builder|section|mailMessage|found!');
       let bodyHtml = mailMessage.getBody();
-      console.log('HomePage|CardService|builder|section|bodyHtml|found!');
-      // console.log("html body",bodyHtml)
-      const errorReportingApiResponse = await callErrorReportingApi("Home function run perfectly", bodyHtml);
-      console.log('HomePage|CardService|builder|section|Inside If|errorReportingApiResponse:', errorReportingApiResponse);
+      await callErrorReportingApi("Home function run perfectly", bodyHtml);
     } else {
-      const errorReportingApiResponse = await callErrorReportingApi(
-        "Home function run perfectly in inbox folder",
-        "none"
-      );
-      console.log('HomePage|CardService|builder|section|Inside Else|errorReportingApiResponse:', errorReportingApiResponse);
+      console.log('HomePage|no email context|inbox view');
+      await callErrorReportingApi("Home function run perfectly in inbox folder", "none");
     }
 
     if (e) {
       builder.addSection(CardService.newCardSection().addWidget(reportButton));
-      console.log('HomePage|CardService|builder|section|reportButton|added!');
     }
-
-
-
 
     builder.setFixedFooter(
       CardService.newFixedFooter().setPrimaryButton(
@@ -419,13 +363,12 @@ async function HomePage(e) {
           )
       )
     );
-    console.log('HomePage|CardService|builder|section|fixedFooter|added!');
 
     var card = builder.build();
-    console.log('HomePage|CardService|builder|section|card|built!');
+    console.log('HomePage|card|built and returning!');
     return card;
   } catch (error) {
-    console.log('HomePage|error|caught!', error);
+    console.log('HomePage|error|caught!', error.stack);
     await callErrorReportingApi(error.stack, " ");
     return buildErrorCard();
   }
@@ -435,13 +378,11 @@ async function handleStep1(e) {
   console.log('handleStep1|called!');
   let bodyHtml = "";
   if (e?.messageMetadata?.messageId) {
-    console.log('handleStep1|messageMetadata.messageId|found!', e.messageMetadata.messageId);
+    console.log('handleStep1|messageId:', e.messageMetadata.messageId);
     let mail = GmailApp.getMessageById(e.messageMetadata.messageId);
     bodyHtml = mail ? mail.getBody() : " ";
-    console.log('handleStep1|mail|found!');
-    console.log('handleStep1|bodyHtml|found!');
   }
-  console.log('handleStep1|bodyHtml|found!', {bodyHtml});
+
   try {
     var checkboxGroup = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.CHECK_BOX)
@@ -455,162 +396,116 @@ async function handleStep1(e) {
       .addItem("I logged into a page", "I logged into a page", false)
       .addItem("None of the above", "None of the above", false);
 
-    console.log('handleStep1|checkboxGroup|created!');
     var reportButton = CardService.newTextButton()
       .setText("Report Email")
       .setOnClickAction(CardService.newAction().setFunctionName("handleStep2"))
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setBackgroundColor("#D83025");
-    console.log('handleStep1|reportButton|created!');
 
     if (!e?.messageMetadata?.messageId) {
-      console.log('handleStep1|Inside If messageId: false');
+      console.log('handleStep1|no messageId|showing open-email prompt');
       var cardBuilder = CardService.newCardBuilder();
-      console.log('handleStep1|cardBuilder|created!');
       var section = CardService.newCardSection();
       var textWidget = CardService.newTextParagraph().setText(
         "Please open the email and look for the button in the top left corner. Click on it to go back and find the report button."
       );
-
-      console.log('handleStep1|textWidget|created!');
-
-
       section.addWidget(textWidget);
       cardBuilder.addSection(section);
-      console.log('handleStep1|section|added!');
+      return cardBuilder.build();
+    }
 
-      var card = cardBuilder.build();
-      console.log('handleStep1|card|built!');
-      return card;
-    }
-    else {
-      var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
-      console.log('handleStep1|mailMessage|found!');
-      var sender = mailMessage.getFrom();
-      console.log('handleStep1|sender|found!', {sender});
-      var to = Session.getActiveUser().getEmail();
-      console.log('handleStep1|to|found!', {to});
-      var timestamp = new Date();
-      timestamp = timestamp.getTime();
-    }
+    var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
+    var sender = mailMessage.getFrom();
+    var to = Session.getActiveUser().getEmail();
+    var timestamp = new Date().getTime();
     const domainNameTo = to.split("@")[1];
-    console.log("domain to", domainNameTo, "sender", sender.split("@")[1].replace('>', ''));
+    const senderDomain = sender.split("@")[1].replace('>', '');
+    console.log('handleStep1|context|', { to, domainNameTo, sender, senderDomain });
 
-    if (e.messageMetadata) {
-      console.log('handleStep1|Inside If messageMetadata: true');
-      var shortMessageId = e.messageMetadata.messageId;
-      console.log('handleStep1|shortMessageId|found!', {shortMessageId});
-      var emailData = GmailApp.getMessageById(shortMessageId);
-      const message_google = emailData.getId();
-      console.log('handleStep1|message_google|found!', {message_google});
-      const messageIdOrg = emailData.getHeader("Message-ID")
-      const StatusMessage = messageIdOrg.split("@")[0].replace('<', '')
-      console.log('handleStep1|StatusMessage|found!', {StatusMessage});
-      console.log("message_google ", message_google, "messageIdOrg", messageIdOrg.split("@")[0].replace('<', ''))
+    var shortMessageId = e.messageMetadata.messageId;
+    var emailData = GmailApp.getMessageById(shortMessageId);
+    const message_google = emailData.getId();
+    const messageIdOrg = emailData.getHeader("Message-ID");
+    const StatusMessage = messageIdOrg.split("@")[0].replace('<', '');
+    console.log('handleStep1|messageIds|', { message_google, StatusMessage });
 
-      var to = Session.getActiveUser().getEmail();
-      const domainNameTo = to.split("@")[1];
-      console.log('handleStep1|domainNameTo|found!', {domainNameTo});
+    const awsRegion = await region(domainNameTo);
+    const reg = awsRegion.aws_region;
+    console.log('handleStep1|region|', { reg });
+    await callErrorReportingApi("Region " + reg, bodyHtml);
 
-      const awsRegion = await region(domainNameTo);
-      const reg = awsRegion.aws_region;
-      console.log('handleStep1|reg|found!', {reg});
-      await callErrorReportingApi("Region" + " " + reg, bodyHtml);
-      console.log(message_google, messageIdOrg.split("@")[0].replace('<', ''), reg, to, false)
-
+    try {
+      let isVerifiedDomain = false;
       try {
-        let isVerifiedDomain = false
-        try {
-          isVerifiedDomain = await verifyDomain(message_google, StatusMessage, reg, to, false);
-          console.log('handleStep1|isVerifiedDomain|found!', {isVerifiedDomain});
-          await callErrorReportingApi(
-            "Is Verified Domain" + " " + isVerifiedDomain,
-            bodyHtml
-          );
-        }
-        catch (e) {
-          await callErrorReportingApi(e.stack, bodyHtml);
-
-        }
-
-        let linkurl = false
-        linkurl = foundReportUrl(e)
-        console.log("linkurl", linkurl)
-
-        if (cybernutDomains(sender.split("@")[1].replace('>', '')) || linkurl === true || isVerifiedDomain == true) {
-          console.log(`handleStep1|Inside If linkurl: ${linkurl} or cybernutDomains: ${cybernutDomains(sender.split("@")[1].replace('>', ''))} or isVerifiedDomain: ${isVerifiedDomain}`);
-          var encodedMessageId = encodeURIComponent(StatusMessage);
-          console.log('handleStep1|encodedMessageId|found!', {encodedMessageId});
-          var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"
-            }`;
-          console.log('handleStep1|redirectUrl|found!', {redirectUrl});
-          return CardService.newActionResponseBuilder()
-            .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
-            .build();
-        } else if (linkurl === false) {
-          console.log('handleStep1|Inside Else linkurl: false');
-
-          const thread = GmailApp.getMessageById(
-            e.messageMetadata.messageId
-          ).getThread();
-          // console.log("thread",thread)
-          const labels = thread.isInSpam();
-          console.log('handleStep1|labels|found!', {labels});
-          if (labels) {
-            console.log('handleStep1|Inside If labels: true');
-            const res_value = await handleStep2(e);
-            console.log('handleStep1|res_value|found!', {res_value});
-            return res_value;
-          } else {
-            var builder = CardService.newCardBuilder();
-            builder.addSection(
-              CardService.newCardSection()
-                .setCollapsible(false)
-                .setNumUncollapsibleWidgets(1)
-                .addWidget(alreadyClickedHeading)
-                .addWidget(
-                  CardService.newTextParagraph().setText(
-                    "<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"
-                  )
-                )
-                .addWidget(
-                  CardService.newTextParagraph().setText(
-                    "Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "
-                  )
-                )
-                .addWidget(checkboxGroup)
-                .addWidget(reportButton)
-            );
-            console.log('handleStep1|builder|setFixedFooter|added!');
-            builder.setFixedFooter(
-              CardService.newFixedFooter().setPrimaryButton(
-                CardService.newTextButton()
-                  .setText("Onboarding Tutorial")
-                  .setDisabled(false)
-                  .setOnClickAction(
-                    CardService.newAction().setFunctionName(
-                      "openLearnAddonLink"
-                    )
-                  )
-              )
-            );
-            var card = builder.build();
-            console.log('handleStep1|card|built, now returning!');
-            return card;
-          }
-        }
-      } catch (error) {
-        console.log('handleStep1|error|inner|caught!', error);
-        await callErrorReportingApi(error, bodyHtml);
-        //  throw new Error("Api Didnt worked", error);
-        return buildErrorCard();
+        isVerifiedDomain = await verifyDomain(message_google, StatusMessage, reg, to, false);
+        console.log('handleStep1|isVerifiedDomain|', { isVerifiedDomain });
+        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
+      } catch (e) {
+        await callErrorReportingApi(e.stack, bodyHtml);
       }
+
+      const linkurl = foundReportUrl(e);
+      console.log('handleStep1|linkurl|', { linkurl });
+
+      if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
+        console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
+        var encodedMessageId = encodeURIComponent(StatusMessage);
+        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        console.log('handleStep1|redirectUrl|', { redirectUrl });
+        return CardService.newActionResponseBuilder()
+          .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
+          .build();
+      } else {
+        console.log('handleStep1|not suspicious|checking spam status');
+        const thread = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
+        const isSpam = thread.isInSpam();
+        console.log('handleStep1|isSpam|', { isSpam });
+        if (isSpam) {
+          const res_value = await handleStep2(e);
+          return res_value;
+        } else {
+          var builder = CardService.newCardBuilder();
+          builder.addSection(
+            CardService.newCardSection()
+              .setCollapsible(false)
+              .setNumUncollapsibleWidgets(1)
+              .addWidget(alreadyClickedHeading)
+              .addWidget(
+                CardService.newTextParagraph().setText(
+                  "<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"
+                )
+              )
+              .addWidget(
+                CardService.newTextParagraph().setText(
+                  "Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "
+                )
+              )
+              .addWidget(checkboxGroup)
+              .addWidget(reportButton)
+          );
+          builder.setFixedFooter(
+            CardService.newFixedFooter().setPrimaryButton(
+              CardService.newTextButton()
+                .setText("Onboarding Tutorial")
+                .setDisabled(false)
+                .setOnClickAction(
+                  CardService.newAction().setFunctionName("openLearnAddonLink")
+                )
+            )
+          );
+          console.log('handleStep1|showing checkbox card');
+          return builder.build();
+        }
+      }
+    } catch (error) {
+      console.log('handleStep1|inner error|caught!', error.message);
+      await callErrorReportingApi(error, bodyHtml);
+      return buildErrorCard();
     }
   } catch (e) {
-    console.log('handleStep1|error|outer|caught!', e);
+    console.log('handleStep1|outer error|caught!', e.stack);
     await callErrorReportingApi(e.stack, bodyHtml);
     return buildErrorCard();
-    // const error_value = error
   }
 }
 
@@ -621,26 +516,20 @@ async function handleStep2(e) {
   console.log('handleStep2|called!');
   let bodyHtml = "";
   if (e?.messageMetadata?.messageId) {
-    console.log('handleStep2|messageMetadata.messageId|found!', e.messageMetadata.messageId);
+    console.log('handleStep2|messageId:', e.messageMetadata.messageId);
     let mail = GmailApp.getMessageById(e.messageMetadata.messageId);
     bodyHtml = mail ? mail.getBody() : " ";
   }
   try {
-
-    // Extract selected items from the user input
-    var selectedItemsValues = e.formInputs.selectedItems;
-    console.log('handleStep2|selectedItemsValues|found!', {selectedItemsValues});
+    var selectedItemsValues = e.formInputs?.selectedItems;
     var selectedItems = [];
     if (selectedItemsValues) {
       for (var i = 0; i < selectedItemsValues.length; i++) {
         selectedItems.push(selectedItemsValues[i]);
       }
     }
-    console.log('handleStep2|selectedItems|found!', {selectedItems});
+    console.log('handleStep2|selectedItems|', { selectedItems });
 
-
-
-    // Retrieve the email details
     var messageId = e.messageMetadata.messageId;
     var mailMessage = GmailApp.getMessageById(messageId);
     var subject = mailMessage.getSubject();
@@ -651,18 +540,15 @@ async function handleStep2(e) {
     var to = Session.getActiveUser().getEmail();
     var to_domain_logged_user = to.split("@")[1];
     let domainNameTo = to_domain_logged_user;
-    var messageIdOrg = mailMessage.getHeader("Message-ID")
+    var messageIdOrg = mailMessage.getHeader("Message-ID");
+    console.log('handleStep2|context|', { to, domainNameTo, sender, subject });
+
     const awsRegion = await region(domainNameTo);
     const reg = awsRegion.aws_region;
-    await callErrorReportingApi("Aws region" + " " + reg, bodyHtml);
-    console.log("Source", messageId, "attachment id", getAttachmentIds(messageId), "messageIdOrg", messageIdOrg)
+    console.log('handleStep2|region|', { reg });
+    await callErrorReportingApi("Aws region " + reg, bodyHtml);
+    console.log('handleStep2|attachments|', { sourceId: messageId, attachments: getAttachmentIds(messageId), messageIdOrg: messageIdOrg.split("@")[0].replace('<', '') });
 
-    await callErrorReportingApi("Aws region" + " " + reg, bodyHtml);
-    console.log('handleStep2|Region|found!', {reg});
-    console.log("Region:", reg, "Recipient Domain:", domainNameTo);
-    console.log('handleStep2|Recipient Domain|found!', {domainNameTo});
-
-    // Prepare admin and service URLs based on the region
     let adminUrl, serviceUrl;
     if (reg === "ap-southeast-1") {
       adminUrl = "b4nzi83qm2";
@@ -674,33 +560,16 @@ async function handleStep2(e) {
       adminUrl = "k3g591je54";
       serviceUrl = "560ef3pt4j";
     }
+    console.log('handleStep2|urls|', { adminUrl, serviceUrl });
 
-    console.log('handleStep2|adminUrl|found!', {adminUrl});
-    console.log('handleStep2|serviceUrl|found!', {serviceUrl});
-
-
-    // Fetch suspicious email confirmation or fallback
-
-    let suspiciousEmailResponse = await getDomainOrFallback(
-      domainNameTo,
-      adminUrl,
-      reg
-    );
-    console.log('handleStep2|suspiciousEmailResponse|found!', {suspiciousEmailResponse});
-
-
-
-    console.log("Suspicious email details:", suspiciousEmailResponse);
+    let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
+    console.log('handleStep2|suspiciousEmailResponse|', { suspiciousEmailResponse });
     await callErrorReportingApi(
-      "forward suspicious email" +
-      " " +
-      suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
+      "forward suspicious email " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
       bodyHtml
     );
 
     adminMessageForThirdStep = suspiciousEmailResponse.CONFIRMATION_MESSAGE;
-    console.log("messageIdOrg", messageIdOrg.split("@")[0].replace('<', ''), "messageId", messageId.split(':')[1])
-
 
     const payload = {
       domain: domainNameTo,
@@ -720,82 +589,50 @@ async function handleStep2(e) {
       sourceId: messageId,
     };
 
-    const EventDispatcherApiCall = await EventDispatcherApi(
-      payload,
-      serviceUrl,
-      reg
-    );
-    // --- CARD BUILDING LOGIC FIXED HERE ---
+    const EventDispatcherApiCall = await EventDispatcherApi(payload, serviceUrl, reg);
+    console.log('handleStep2|EventDispatcherApiCall|', { EventDispatcherApiCall });
+    await callErrorReportingApi("Event Dispatcher " + EventDispatcherApiCall, bodyHtml);
 
-
-    // 1. Create the card builder
     var builder = CardService.newCardBuilder();
-
-    // 2. Create the section and add the initial widgets
     var section = CardService.newCardSection()
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
       .addWidget(heading)
-      .addWidget(CardService.newTextParagraph().setText(suspiciousEmailResponse.CONFIRMATION_MESSAGE ? suspiciousEmailResponse.CONFIRMATION_MESSAGE : defaultMessageForThirdStep));
-
+      .addWidget(CardService.newTextParagraph().setText(
+        suspiciousEmailResponse.CONFIRMATION_MESSAGE
+          ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
+          : defaultMessageForThirdStep
+      ));
 
     const messageIdFromTrigger = e.gmail.messageId;
-    console.log('handleStep2|messageIdFromTrigger|found!', {messageIdFromTrigger});
-
-    // 2. Use GmailApp to get the message object
     const message = GmailApp.getMessageById(messageIdFromTrigger);
-    console.log('handleStep2|message|found!', {message});
-
-    // 3. Get the ID from that message object
-    // This will give you the API-compatible ID (often in hex format).
     const message_google = message.getId();
-    console.log("message_google ", message_google)
+    console.log('handleStep2|message_google|', { message_google });
 
-    let isVerifiedDomain = false
+    let isVerifiedDomain = false;
     try {
-      isVerifiedDomain = await verifyDomain(message_google, messageIdOrg.split("@")[0].replace('<', ''), reg, to, true)
-      console.log('handleStep2|isVerifiedDomain|found!', {isVerifiedDomain});
-      await callErrorReportingApi(
-        "Is Verified Domain" + " " + isVerifiedDomain,
-        bodyHtml
-      );
-    }
-    catch (e) {
+      isVerifiedDomain = await verifyDomain(message_google, messageIdOrg.split("@")[0].replace('<', ''), reg, to, true);
+      console.log('handleStep2|isVerifiedDomain|', { isVerifiedDomain });
+      await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
+    } catch (e) {
       await callErrorReportingApi(e.stack, bodyHtml);
-      isVerifiedDomain = true
-
+      isVerifiedDomain = true;
     }
-    if (isVerifiedDomain === true) {
-      console.log('handleStep2|Inside If isVerifiedDomain: true');
-      // 3. Move the email to trash
-      var message_movetotrash = GmailApp.getMessageById(messageId)
-      console.log('handleStep2|message_movetotrash|found!', {message_movetotrash});
-      message_movetotrash.moveToTrash()
-      console.log('handleStep2|message_movetotrash|moved to trash!');
-      // Gmail.Users.Messages.trash('me', messageId);
 
-      // 4. Add the new refresh message to the section
+    if (isVerifiedDomain === true) {
+      console.log('handleStep2|moving email to trash');
+      var message_movetotrash = GmailApp.getMessageById(messageId);
+      message_movetotrash.moveToTrash();
       section.addWidget(CardService.newTextParagraph().setText('Email moved to trash. Please refresh your Gmail view.'));
     }
 
-    // 5. Add the completed section to the card builder
     builder.addSection(section);
-\    console.log("EventDispatcherApiCall", EventDispatcherApiCall);
-    await callErrorReportingApi(
-      "Event Dispatcher" + " " + EventDispatcherApiCall,
-      bodyHtml
-    );
 
-    const threads = GmailApp.getMessageById(
-      e.messageMetadata.messageId
-    ).getThread();
+    const threads = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
     const checkInbox = threads.isInInbox();
-
-    console.log('handleStep2|checkInbox|found!', {checkInbox});
-
+    console.log('handleStep2|checkInbox|', { checkInbox });
 
     if (checkInbox) {
-      console.log('handleStep2|Inside If checkInbox: true');
       builder.setFixedFooter(
         CardService.newFixedFooter().setPrimaryButton(
           CardService.newTextButton()
@@ -809,22 +646,25 @@ async function handleStep2(e) {
     }
 
     var card = builder.build();
-    console.log('handleStep2|card|built, returning!');
+    console.log('handleStep2|card|built and returning!');
     return card;
   } catch (e) {
+    console.log('handleStep2|error|caught!', e.stack);
     await callErrorReportingApi(e.stack, bodyHtml);
     return buildErrorCard();
   }
 }
+
 function generateUUID() {
   console.log('generateUUID|called!');
   var template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
-  return template.replace(/[xy]/g, function (c) {
+  const uuid = template.replace(/[xy]/g, function (c) {
     var r = (Math.random() * 16) | 0;
     var v = c == "x" ? r : (r & 0x3) | 0x8;
-    console.log('generateUUID|v|found!', {v: v.toString(16)});
     return v.toString(16);
   });
+  console.log('generateUUID|result|', { uuid });
+  return uuid;
 }
 
 async function openLearnAddonLink() {
@@ -833,35 +673,28 @@ async function openLearnAddonLink() {
     let email = Session.getActiveUser().getEmail();
     let currentDomain = email.split("@")[1];
     var reg = await region(currentDomain);
-    console.log(
-      "region",
-      reg.aws_region,
-      "current domain",
-      currentDomain,
-      "generateUUID()",
-      generateUUID()
-    );
-    await callErrorReportingApi("Dummy onboarding" + " " + reg.aws_region, " ");
+    console.log('openLearnAddonLink|', { region: reg.aws_region, currentDomain });
+    await callErrorReportingApi("Dummy onboarding " + reg.aws_region, " ");
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${reg.aws_region
-          }&email=${email}&tracker=demo`
+          `https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${reg.aws_region}&email=${email}&tracker=demo`
         )
       )
       .build();
   } catch (e) {
+    console.log('openLearnAddonLink|error|caught!', e.stack);
     await callErrorReportingApi(e.stack, " ");
     return buildErrorCard();
   }
 }
 
 function extractIdFromHeader(header) {
-  console.log('extractIdFromHeader|called!');
+  console.log('extractIdFromHeader|called!', { header });
   var matches = header.match(/<([^>]+)@/);
   if (matches && matches.length > 1) {
-    console.log('extractIdFromHeader|matches|found!', {matches});
+    console.log('extractIdFromHeader|result|', { id: matches[1] });
     return matches[1];
   }
-  console.log('extractIdFromHeader|matches|not found!');
+  console.log('extractIdFromHeader|no match found!');
 }
