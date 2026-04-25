@@ -551,14 +551,14 @@ async function handleStep2(e) {
 
     let adminUrl, serviceUrl;
     if (reg === "ap-southeast-1") {
-      adminUrl = "b4nzi83qm2";
-      serviceUrl = "vahgicl5qh";
+      adminUrl = "o1gk4tisc4";
+      serviceUrl = "cllxz8kqk7";
     } else if (reg === "eu-central-1") {
-      adminUrl = "dej7cfclm9";
-      serviceUrl = "p3shdnpenc";
+      adminUrl = "efmvxrr92j";
+      serviceUrl = "7jww0knq3g";
     } else {
-      adminUrl = "k3g591je54";
-      serviceUrl = "560ef3pt4j";
+      adminUrl = "rg0w8yelb6";
+      serviceUrl = "rhqh5ihdvj";
     }
     console.log('handleStep2|urls|', { adminUrl, serviceUrl });
 
