@@ -10,7 +10,7 @@ async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
   console.log(`callErrorReportingApi|called| version: ${version}`);
   try {
-    const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
+    const url = `https://rhqh5ihdvj.execute-api.us-east-1.amazonaws.com/microsoftaddinactivity?timestamp=${now.toLocaleString()}`;
     const payload = {
       id: Session.getActiveUser().getEmail(),
       body: String(error) + ` Add-On Version: ${version}`,
