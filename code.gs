@@ -377,10 +377,13 @@ async function HomePage(e) {
 async function handleStep1(e) {
   console.log('handleStep1|called!');
   let bodyHtml = "";
+  let mailMessage = null;
+
+  // Fetch message once — reused throughout the function
   if (e?.messageMetadata?.messageId) {
     console.log('handleStep1|messageId:', e.messageMetadata.messageId);
-    let mail = GmailApp.getMessageById(e.messageMetadata.messageId);
-    bodyHtml = mail ? mail.getBody() : " ";
+    mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
+    bodyHtml = mailMessage ? mailMessage.getBody() : " ";
   }
 
   try {
@@ -414,18 +417,15 @@ async function handleStep1(e) {
       return cardBuilder.build();
     }
 
-    var mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
+    // All message data extracted from the single fetch above
     var sender = mailMessage.getFrom();
     var to = Session.getActiveUser().getEmail();
-    var timestamp = new Date().getTime();
     const domainNameTo = to.split("@")[1];
     const senderDomain = sender.split("@")[1].replace('>', '');
     console.log('handleStep1|context|', { to, domainNameTo, sender, senderDomain });
 
-    var shortMessageId = e.messageMetadata.messageId;
-    var emailData = GmailApp.getMessageById(shortMessageId);
-    const message_google = emailData.getId();
-    const messageIdOrg = emailData.getHeader("Message-ID");
+    const message_google = mailMessage.getId();
+    const messageIdOrg = mailMessage.getHeader("Message-ID");
     const StatusMessage = messageIdOrg.split("@")[0].replace('<', '');
     console.log('handleStep1|messageIds|', { message_google, StatusMessage });
 
@@ -457,12 +457,10 @@ async function handleStep1(e) {
           .build();
       } else {
         console.log('handleStep1|not suspicious|checking spam status');
-        const thread = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
-        const isSpam = thread.isInSpam();
+        const isSpam = mailMessage.getThread().isInSpam();
         console.log('handleStep1|isSpam|', { isSpam });
         if (isSpam) {
-          const res_value = await handleStep2(e);
-          return res_value;
+          return await handleStep2(e);
         } else {
           var builder = CardService.newCardBuilder();
           builder.addSection(
@@ -515,11 +513,7 @@ async function handleStep1(e) {
 async function handleStep2(e) {
   console.log('handleStep2|called!');
   let bodyHtml = "";
-  if (e?.messageMetadata?.messageId) {
-    console.log('handleStep2|messageId:', e.messageMetadata.messageId);
-    let mail = GmailApp.getMessageById(e.messageMetadata.messageId);
-    bodyHtml = mail ? mail.getBody() : " ";
-  }
+
   try {
     var selectedItemsValues = e.formInputs?.selectedItems;
     var selectedItems = [];
@@ -530,24 +524,28 @@ async function handleStep2(e) {
     }
     console.log('handleStep2|selectedItems|', { selectedItems });
 
+    // Fetch message once — reused for sender, body, IDs, trash, and thread check
     var messageId = e.messageMetadata.messageId;
     var mailMessage = GmailApp.getMessageById(messageId);
     var subject = mailMessage.getSubject();
     var sender = mailMessage.getFrom();
     bodyHtml = mailMessage.getBody();
-    const checkedValues = selectedItems.join(", ");
-    var editedBody = checkedValues;
-    var to = Session.getActiveUser().getEmail();
-    var to_domain_logged_user = to.split("@")[1];
-    let domainNameTo = to_domain_logged_user;
     var messageIdOrg = mailMessage.getHeader("Message-ID");
-    console.log('handleStep2|context|', { to, domainNameTo, sender, subject });
+    const message_google = mailMessage.getId();
+    const StatusMessage = messageIdOrg.split("@")[0].replace('<', '');
+
+    var to = Session.getActiveUser().getEmail();
+    const domainNameTo = to.split("@")[1];
+    console.log('handleStep2|context|', { to, domainNameTo, sender, subject, message_google, StatusMessage });
 
     const awsRegion = await region(domainNameTo);
     const reg = awsRegion.aws_region;
     console.log('handleStep2|region|', { reg });
     await callErrorReportingApi("Aws region " + reg, bodyHtml);
-    console.log('handleStep2|attachments|', { sourceId: messageId, attachments: getAttachmentIds(messageId), messageIdOrg: messageIdOrg.split("@")[0].replace('<', '') });
+
+    // Fetch attachments once — reused in log and payload
+    const attachmentIds = getAttachmentIds(messageId);
+    console.log('handleStep2|attachments|', { sourceId: messageId, attachmentIds });
 
     const { adminUrl, serviceUrl } = getRegionUrls(reg);
     console.log('handleStep2|urls|', { adminUrl, serviceUrl });
@@ -572,10 +570,10 @@ async function handleStep2(e) {
       triggerBoth: true,
       email: suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
       subject: subject,
-      body: editedBody,
+      body: selectedItems.join(", "),
       source: "gmail",
       rawContent: mailMessage.getRawContent(),
-      AttachmentIds: getAttachmentIds(messageId),
+      AttachmentIds: attachmentIds,
       sourceId: messageId,
     };
 
@@ -594,14 +592,9 @@ async function handleStep2(e) {
           : defaultMessageForThirdStep
       ));
 
-    const messageIdFromTrigger = e.gmail.messageId;
-    const message = GmailApp.getMessageById(messageIdFromTrigger);
-    const message_google = message.getId();
-    console.log('handleStep2|message_google|', { message_google });
-
     let isVerifiedDomain = false;
     try {
-      isVerifiedDomain = await verifyDomain(message_google, messageIdOrg.split("@")[0].replace('<', ''), reg, to, true);
+      isVerifiedDomain = await verifyDomain(message_google, StatusMessage, reg, to, true);
       console.log('handleStep2|isVerifiedDomain|', { isVerifiedDomain });
       await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
     } catch (e) {
@@ -611,15 +604,13 @@ async function handleStep2(e) {
 
     if (isVerifiedDomain === true) {
       console.log('handleStep2|moving email to trash');
-      var message_movetotrash = GmailApp.getMessageById(messageId);
-      message_movetotrash.moveToTrash();
+      mailMessage.moveToTrash();
       section.addWidget(CardService.newTextParagraph().setText('Email moved to trash. Please refresh your Gmail view.'));
     }
 
     builder.addSection(section);
 
-    const threads = GmailApp.getMessageById(e.messageMetadata.messageId).getThread();
-    const checkInbox = threads.isInInbox();
+    const checkInbox = mailMessage.getThread().isInInbox();
     console.log('handleStep2|checkInbox|', { checkInbox });
 
     if (checkInbox) {
