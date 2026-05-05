@@ -1,6 +1,6 @@
-var version = " v 2.3.9"
+var version = "v 2.3.9"
 var heading = CardService.newTextParagraph().setText(
-`<b>Cybernut Reporting Tool This Addon Updated For Traning V2   </b>  ${version}`
+  `<b>Cybernut Reporting Tool This Addon Updated For Traning V2   </b>  ${version}`
 );
 var alreadyClickedHeading = CardService.newTextParagraph().setText(
   "<b>WAIT - Did you accidentally click on something in this email?</b>"
@@ -457,21 +457,26 @@ async function handleStep1(e) {
     try {
       let isVerifiedDomain = false;
       let campaignVersion = null;
+      let isV2Campaign = false;
+      let verifyFailed = false;
       try {
         const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
         isVerifiedDomain = verifyResponse.messageExists;
         campaignVersion = verifyResponse.campaignVersion;
-        console.log('handleStep1|verifyResponse|', { isVerifiedDomain, campaignVersion });
-        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain + " campaignVersion " + campaignVersion, bodyHtml);
+        isV2Campaign = verifyResponse.isV2Campaign === true;
+        console.log('handleStep1|verifyResponse|', { isVerifiedDomain, campaignVersion, isV2Campaign });
+        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain + " campaignVersion " + campaignVersion + " isV2Campaign " + isV2Campaign, bodyHtml);
       } catch (e) {
+        verifyFailed = true;
         await callErrorReportingApi(e.stack, bodyHtml);
       }
 
-      if (campaignVersion !== "v2") {
+      if (verifyFailed) {
         try {
           const fallbackResponse = await callCampaignVersionApi(StatusMessage, reg);
           campaignVersion = fallbackResponse.campaignVersion;
-          console.log('handleStep1|campaignVersionFallback|', { campaignVersion });
+          isV2Campaign = fallbackResponse.isV2Campaign === true;
+          console.log('handleStep1|campaignVersionFallback|', { campaignVersion, isV2Campaign });
         } catch (fallbackErr) {
           console.error('handleStep1|campaignVersionFallback|failed|', fallbackErr.message);
           await callErrorReportingApi(fallbackErr.stack, bodyHtml);
@@ -483,8 +488,8 @@ async function handleStep1(e) {
 
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
-      if (campaignVersion === "v2") {
-        var redirectUrl = `https://dev-training.cybernut.com?messageid=${encodedMessageId}&region=${reg}`;
+      if (campaignVersion === "v2" && isV2Campaign) {
+        var redirectUrl = `https://dev-training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
         console.log('handleStep1|campaignV2|redirecting to dev-training|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
