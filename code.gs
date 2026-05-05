@@ -1,6 +1,6 @@
-var version = "v 2.3.8"
+var version = " v 2.3.9"
 var heading = CardService.newTextParagraph().setText(
-  `<b>Cybernut Reporting Tool   </b>  ${version}`
+`<b>Cybernut Reporting Tool This Addon Updated For Traning V2   </b>  ${version}`
 );
 var alreadyClickedHeading = CardService.newTextParagraph().setText(
   "<b>WAIT - Did you accidentally click on something in this email?</b>"
@@ -75,7 +75,7 @@ function foundReportUrl(e) {
   console.log('foundReportUrl|called!', { messageId: e?.gmail?.messageId });
   const message = GmailApp.getMessageById(e.gmail.messageId);
   const emailBody = message.getBody();
-  const encodedTarget = 'www.cybernut-k12.com';
+  const encodedTarget = 'userportaldev.cybernut-k12.com';
   const found = emailBody.includes(encodedTarget);
   console.log('foundReportUrl|result|', { found });
   return found;
@@ -491,7 +491,7 @@ async function handleStep1(e) {
           .build();
       } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
-        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        var redirectUrl = `https://userportaldev.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
