@@ -243,6 +243,27 @@ function getRegionUrls(region) {
 
 
 
+async function callCampaignVersionApi(messageId, reg) {
+  console.log('callCampaignVersionApi|called!', { messageId, reg });
+  const { verifyUrl } = getRegionUrls(reg);
+  const url = `https://${verifyUrl}.execute-api.${reg}.amazonaws.com/campaignversion`;
+  const response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify({ messageId }),
+    muteHttpExceptions: true,
+  });
+  const statusCode = response.getResponseCode();
+  console.log('callCampaignVersionApi|responseCode|', { statusCode });
+  if (statusCode !== 200) {
+    throw new Error(`campaignversion API returned status ${statusCode}`);
+  }
+  const jsonResponse = JSON.parse(response.getContentText());
+  console.log('callCampaignVersionApi|result|', { jsonResponse });
+  return jsonResponse;
+}
+
+
 async function EventDispatcherApi(payload, serviceUrl, reg) {
   console.log('EventDispatcherApi|called!', { serviceUrl, reg, domain: payload.domain, action: payload.action });
   const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`;
@@ -444,6 +465,17 @@ async function handleStep1(e) {
         await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain + " campaignVersion " + campaignVersion, bodyHtml);
       } catch (e) {
         await callErrorReportingApi(e.stack, bodyHtml);
+      }
+
+      if (campaignVersion !== "v2") {
+        try {
+          const fallbackResponse = await callCampaignVersionApi(StatusMessage, reg);
+          campaignVersion = fallbackResponse.campaignVersion;
+          console.log('handleStep1|campaignVersionFallback|', { campaignVersion });
+        } catch (fallbackErr) {
+          console.error('handleStep1|campaignVersionFallback|failed|', fallbackErr.message);
+          await callErrorReportingApi(fallbackErr.stack, bodyHtml);
+        }
       }
 
       const linkurl = foundReportUrl(e);
