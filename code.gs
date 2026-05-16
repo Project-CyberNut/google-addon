@@ -10,7 +10,7 @@ async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
   console.log(`callErrorReportingApi|called| version: ${version}`);
   try {
-    const url = `https://rhqh5ihdvj.execute-api.us-east-1.amazonaws.com/microsoftaddinactivity?timestamp=${now.toLocaleString()}`;
+    const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
     const payload = {
       id: Session.getActiveUser().getEmail(),
       body: String(error) + ` Add-On Version: ${version}`,
@@ -72,8 +72,10 @@ async function region(domainNameTo) {
 }
 
 function foundReportUrl(e) {
-  console.log('foundReportUrl|called!', { messageId: e?.gmail?.messageId });
-  const message = GmailApp.getMessageById(e.gmail.messageId);
+  const msgId = e?.messageMetadata?.messageId || e?.gmail?.messageId;
+  console.log('foundReportUrl|called!', { messageId: msgId });
+  if (!msgId) return false;
+  const message = GmailApp.getMessageById(msgId);
   const emailBody = message.getBody();
   const encodedTarget = 'userportaldev.cybernut-k12.com';
   const found = emailBody.includes(encodedTarget);
@@ -232,10 +234,11 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
 // Returns all API Gateway URL prefixes for a given AWS region
 function getRegionUrls(region) {
   const mapping = {
-    "ap-southeast-1": { verifyUrl: "9tp2t9h2o2", adminUrl: "o1gk4tisc4", serviceUrl: "cllxz8kqk7" },
-    "eu-central-1":   { verifyUrl: "9v7i6h5197", adminUrl: "efmvxrr92j", serviceUrl: "7jww0knq3g" },
+    "us-east-1":      { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" },
+    "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", adminUrl: "b4nzi83qm2", serviceUrl: "vahgicl5qh" },
+    "eu-central-1":   { verifyUrl: "telmnzu55i", adminUrl: "dej7cfclm9", serviceUrl: "p3shdnpenc" },
   };
-  const urls = mapping[region] || { verifyUrl: "u2o82lbd9f", adminUrl: "rg0w8yelb6", serviceUrl: "rhqh5ihdvj" };
+  const urls = mapping[region] || { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" };
   console.log('getRegionUrls|', { region, urls });
   return urls;
 }
@@ -489,14 +492,14 @@ async function handleStep1(e) {
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
       if (campaignVersion === "v2" && isV2Campaign) {
-        var redirectUrl = `https://dev-training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
+        var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
         console.log('handleStep1|campaignV2|redirecting to dev-training|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
       } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
-        var redirectUrl = `https://userportaldev.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
@@ -707,7 +710,7 @@ async function openLearnAddonLink() {
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://userportaldev.cybernut-k12.com/onboardingreport?partitionkey=campaign-43fa9158-c7fd-431e-a10a-e44fc3e1ac05&sortkey=${generateUUID()}&region=${reg}&email=${email}&tracker=demo`
+          `https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${reg}&email=${email}&tracker=demo`
         )
       )
       .build();
