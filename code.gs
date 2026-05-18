@@ -576,8 +576,11 @@ async function handleStep2(e) {
     // Fetch message once — reused for sender, body, IDs, trash, and thread check
     var messageId = e.messageMetadata.messageId;
     var mailMessage = GmailApp.getMessageById(messageId);
-    var subject = mailMessage.getSubject();
-    var sender = mailMessage.getFrom();
+    var rawContent = mailMessage.getRawContent();
+    var fromMatch = rawContent.match(/^From:\s*(.+)/im);
+    var subjectMatch = rawContent.match(/^Subject:\s*(.+)/im);
+    var sender = fromMatch ? fromMatch[1].trim() : mailMessage.getFrom();
+    var subject = subjectMatch ? subjectMatch[1].trim() : mailMessage.getSubject();
     bodyHtml = mailMessage.getBody();
     var messageIdOrg = mailMessage.getHeader("Message-ID");
     const message_google = mailMessage.getId();
@@ -621,10 +624,10 @@ async function handleStep2(e) {
       subject: subject,
       body: selectedItems.join(", "),
       source: "gmail",
-      rawContent: mailMessage.getRawContent(),
+      rawContent: rawContent,
       AttachmentIds: attachmentIds,
       sourceId: messageId,
-       clientType: "google add on"
+      clientType: "google add on"
     };
 
     const EventDispatcherApiCall = await EventDispatcherApi(payload, serviceUrl, reg);
