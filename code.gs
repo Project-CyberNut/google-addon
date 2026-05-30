@@ -1,6 +1,6 @@
 var version = "v 2.3.9"
 var heading = CardService.newTextParagraph().setText(
-  `<b>Cybernut Reporting Tool This Addon Updated For Traning V2   </b>  ${version}`
+  `<b>Cybernut Reporting Tool</b>  ${version}`
 );
 var alreadyClickedHeading = CardService.newTextParagraph().setText(
   "<b>WAIT - Did you accidentally click on something in this email?</b>"
