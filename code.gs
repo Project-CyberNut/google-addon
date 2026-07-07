@@ -713,7 +713,7 @@ async function openLearnAddonLink() {
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://www.cybernut-k12.com/onboardingreport?partitionkey=campaign-8d16cb87-e16e-400a-a288-14e55a99a1bb&sortkey=${generateUUID()}&region=${reg}&email=${email}&tracker=demo`
+          `https://www.cybernut-k12.com/onboardingreport?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo`
         )
       )
       .build();
