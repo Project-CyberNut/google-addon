@@ -167,7 +167,6 @@ function cybernutDomains(senderDomain) {
     'instagram-services.com',
     'cybernut-k12.com',
     'tiktok-teams.com',
-    'cybernut.com',
     'hulu-connect.com',
     'netflix-updates.com',
     'schoology-communications.com'
