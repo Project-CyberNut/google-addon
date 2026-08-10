@@ -1,4 +1,4 @@
-var version = "v 2.3.9"
+var version = "v 2.4.4"
 var heading = CardService.newTextParagraph().setText(
   `<b>Cybernut Reporting Tool</b>  ${version}`
 );
@@ -77,7 +77,7 @@ function foundReportUrl(e) {
   if (!msgId) return false;
   const message = GmailApp.getMessageById(msgId);
   const emailBody = message.getBody();
-  const encodedTarget = 'userportaldev.cybernut-k12.com';
+  const encodedTarget = 'training.cybernut.com';
   const found = emailBody.includes(encodedTarget);
   console.log('foundReportUrl|result|', { found });
   return found;
@@ -492,7 +492,7 @@ async function handleStep1(e) {
 
       if (campaignVersion === "v2" && isV2Campaign) {
         var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
-        console.log('handleStep1|campaignV2|redirecting to dev-training|', { redirectUrl });
+        console.log('handleStep1|campaignV2|redirecting to training|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
