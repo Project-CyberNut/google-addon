@@ -14,7 +14,7 @@
   "addOns": {
     "common": {
       "name": "CyberNut Reporting Tool",
-      "logoUrl": "https://addin.cybernut.com/assets/squirrel-32.png",
+      "logoUrl": "https://lh3.googleusercontent.com/-0tsHbiHxHQ0/Zj-brUtyRTI/AAAAAAAAAAM/EgnD6SB8t4wFmD-x8v6fso1ea1DIBPCRwCNcBGAsYHQ/s400/cyberNut-logo-32x32.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
         "runFunction": "HomePage",
