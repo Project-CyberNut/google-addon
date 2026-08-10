@@ -3,18 +3,17 @@
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
   "oauthScopes": [
-    "https://www.googleapis.com/auth/script.locale",
+ "https://www.googleapis.com/auth/script.locale",
     "https://www.googleapis.com/auth/gmail.addons.execute",
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/gmail.readonly"
+    "https://www.googleapis.com/auth/gmail.modify"
   ],
   "addOns": {
     "common": {
       "name": "CyberNut Reporting Tool",
-      "logoUrl": "https://lh3.googleusercontent.com/-0tsHbiHxHQ0/Zj-brUtyRTI/AAAAAAAAAAM/EgnD6SB8t4wFmD-x8v6fso1ea1DIBPCRwCNcBGAsYHQ/s400/cyberNut-logo-32x32.png",
+      "logoUrl": "https://addin.cybernut.com/assets/squirrel-32.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
         "runFunction": "HomePage",
