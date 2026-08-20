@@ -490,13 +490,18 @@ async function handleStep1(e) {
 
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
-      if (campaignVersion === "v2" && isV2Campaign) {
-        var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
-        console.log('handleStep1|campaignV2|redirecting to training|', { redirectUrl });
+      // Primary: the API flagged this as a v2/onboarding campaign.
+      // Fallback: the API said no, so fall back to the training link in the body.
+      const isV2Api = campaignVersion === "v2" || isV2Campaign;
+      const isTrainingEmail = isV2Api || linkurl === true;
+
+      if (isTrainingEmail) {
+        var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        console.log('handleStep1|training|redirecting|', { redirectUrl, matchedBy: isV2Api ? 'api' : 'bodyLink', campaignVersion, isV2Campaign, linkurl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
-      } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
+      } else if (cybernutDomains(senderDomain) || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
         var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
