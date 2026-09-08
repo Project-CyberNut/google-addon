@@ -49,9 +49,13 @@ GET   /public/users/preferred-language?domain=acme.org&email=jane@acme.org
 PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
 ```
 
-**Which languages the dropdown offers**: the account's supported list,
-narrowed to languages the add-on ships. If the list cannot be read, every
-shipped language is offered. If fewer than two remain, the dropdown is hidden.
+**Which languages the dropdown offers**: exactly the account's supported
+list from `GET /public/accounts/supported-languages`, in the backend's order,
+using the backend's codes. Admins add or remove languages there; nothing in
+the add-on changes. Name and flag for each option are derived from the code
+(`Intl.DisplayNames`, `Intl.Locale#maximize`). If the list cannot be read,
+the languages with shipped card copy are offered. If fewer than two remain,
+the dropdown is hidden and that one language is used.
 
 **Which language a card renders in**, first match wins:
 
@@ -68,21 +72,18 @@ and shows a "could not save" toast.
 stored preference 1 h. A change made in the portal reaches the add-on within
 an hour; a change made in the add-on is immediate.
 
-### Adding a language
+### Translating the card copy for a language
 
-1. Add `{ code: "xx" }` to `LOCALES` in `i18n.gs`. The native name
-   (`Intl.DisplayNames`), the flag's country (`Intl.Locale#maximize`, the
-   same CLDR rule the portal's picker uses: en → US, es → ES, ar → EG) and the
-   text direction are derived from the code. Override any of them with
-   `label`, `country` or `rtl` on the entry when CLDR's answer is not the one
-   wanted. The flag is rendered as an emoji in the dropdown.
-   Run `debugLocaleRegistry()` in the Apps Script editor once to confirm the
-   runtime derives what you expect.
-2. Add a full catalogue under `MESSAGES[code]` with the same keys as `en`.
-   A missing key falls back to English and logs a warning.
-3. Nothing else changes: the dropdown, resolution and API calls read the
-   registry. The account also has to list the code in its supported languages
-   for the option to appear.
+A language the backend offers is selectable and saved to the account even
+without a translation here; the card copy then renders in English (a warning
+is logged). To translate it, add a catalogue under `MESSAGES[code]` in
+`i18n.gs` with the same keys as `en`. Region tags fall back to their base
+language (`pt-BR` uses `pt`). A missing key falls back to English.
+
+If CLDR's derived name, flag or direction is not the one wanted, add an entry
+to `LOCALE_OVERRIDES`, e.g. `"es": { country: "MX" }`. Run
+`debugLocaleDerivation(["en", "fr", "pt-BR"])` in the Apps Script editor to
+see what the runtime derives for any codes.
 
 Checkbox **values** in step 1 stay English (IT receives them in the report
 body); only the labels are translated.

@@ -4,9 +4,10 @@
  * Mirrors user-portal-micro-learning-v2/src/i18n/config.ts and the language
  * selector on the cyb4-1364 branch, so both surfaces behave the same way:
  *
- *   options   = the account's supported languages, narrowed to the ones we
- *               ship a catalogue for (all shipped languages if the list is
- *               unreadable; hidden entirely when fewer than two remain)
+ *   options   = exactly the account's supported languages from the backend
+ *               (admins add/remove them there; nothing here needs to change).
+ *               Hidden when fewer than two remain. If the list is unreadable,
+ *               the languages we ship copy for are offered instead.
  *   locale    = stored preference on the account
  *               -> last explicit choice on this device
  *               -> Gmail's UI language, if we ship it
@@ -14,37 +15,38 @@
  *   on change = remember locally first (so a failed save never strands the
  *               user), then PATCH the preference to the account
  *
- * Adding a language: add its code to LOCALES and one catalogue to MESSAGES.
- * Name, flag and direction are derived from the code. Nothing else changes. Keep every catalogue key in sync with `en`; `t()`
- * falls back to English for a missing key and logs it.
+ * Card copy: MESSAGES holds the catalogues we ship. A language the backend
+ * offers but we have no catalogue for still appears in the dropdown (name and
+ * flag are derived from its code), is saved to the account, and renders the
+ * card copy in English until a catalogue is added. Keep every catalogue's
+ * keys in sync with `en`; `t()` falls back to English for a missing key.
  */
 
 /**
- * Registry. Only `code` is required: the native name, the flag's country and
- * the text direction are derived from the code at runtime via `Intl`, the
- * same way the portal's LanguagePicker does it (CLDR likely subtags: en -> US,
- * es -> ES, ar -> EG). So adding a language is normally just its code.
- *
- * Optional overrides, for when CLDR's answer is not the one wanted:
+ * Display overrides, keyed by language code, for when CLDR's derived answer
+ * is not the one wanted. Normally empty: the native name comes from
+ * Intl.DisplayNames, the flag's country from Intl.Locale#maximize (the same
+ * CLDR rule the portal's LanguagePicker uses: en -> US, es -> ES, ar -> EG)
+ * and the direction from the locale's text info.
  *   label    native name shown in the dropdown (never translated)
  *   country  ISO 3166 code of the flag to fly; "" for no flag
  *   rtl      true/false
- *
- * Run `debugLocaleRegistry()` in the Apps Script editor to see what each
- * code derives to on the real runtime.
+ * Example: `"es": { country: "MX" }`
  */
-var LOCALES = [
-  { code: "en" },
-  { code: "es" },
-  { code: "ar" },
-];
+var LOCALE_OVERRIDES = {};
 
 /** Used only when `Intl.Locale` cannot tell us; CLDR knows the rest. */
 var RTL_FALLBACK = ["ar", "he", "fa", "ur"];
 
+/** A language tag we are willing to put in the dropdown: BCP 47 shaped. */
+var LANGUAGE_TAG_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
+
 var DEFAULT_LOCALE = "en";
 
-var LOCALE_CODES = LOCALES.map(function (l) { return l.code; });
+/** Languages we ship card copy for; the fallback offer when the API is unreadable. */
+function shippedLocales() {
+  return Object.keys(MESSAGES);
+}
 
 /** Cache lifetimes (seconds). CacheService caps entries at 6 hours. */
 var LOCALE_CACHE_TTL = 60 * 60;          // stored preference, re-read hourly
@@ -184,22 +186,43 @@ var MESSAGES = {
 // Registry helpers
 // ---------------------------------------------------------------------------
 
+/** True for a well-formed language tag, whatever the backend chooses to send. */
 function isLocale(value) {
-  return typeof value === "string" && LOCALE_CODES.indexOf(value) !== -1;
+  return typeof value === "string" && LANGUAGE_TAG_PATTERN.test(value.trim());
 }
 
-/** `es-MX` / `en_US` -> `es` / `en`, or null when we ship no catalogue for it. */
+/** Canonical form of a tag: trimmed, `_` -> `-`, lowercase. Null when malformed. */
 function normalizeLocale(value) {
   if (!value) return null;
-  var base = String(value).trim().toLowerCase().split(/[-_]/)[0];
-  return isLocale(base) ? base : null;
+  var tag = String(value).trim().replace(/_/g, "-").toLowerCase();
+  return isLocale(tag) ? tag : null;
 }
 
-function localeEntry(code) {
-  for (var i = 0; i < LOCALES.length; i++) {
-    if (LOCALES[i].code === code) return LOCALES[i];
+/** `es-mx` -> `es`. */
+function baseLanguage(code) {
+  return String(code).toLowerCase().split("-")[0];
+}
+
+/**
+ * The option that stands for `code`: an exact match first, else the option
+ * with the same base language (device `es-MX` -> option `es`). Null when the
+ * account offers nothing for it.
+ */
+function matchOption(options, code) {
+  var normalized = normalizeLocale(code);
+  if (!normalized) return null;
+  for (var i = 0; i < options.length; i++) {
+    if (options[i].toLowerCase() === normalized) return options[i];
+  }
+  var base = baseLanguage(normalized);
+  for (var j = 0; j < options.length; j++) {
+    if (baseLanguage(options[j]) === base) return options[j];
   }
   return null;
+}
+
+function localeOverride(code) {
+  return LOCALE_OVERRIDES[code] || LOCALE_OVERRIDES[baseLanguage(code)] || null;
 }
 
 /**
@@ -209,11 +232,11 @@ function localeEntry(code) {
  * language itself; last resort the bare code.
  */
 function localeLabel(code) {
-  var entry = localeEntry(code);
-  if (entry && entry.label) return entry.label;
+  var override = localeOverride(code);
+  if (override && override.label) return override.label;
   try {
     var name = new Intl.DisplayNames([code], { type: "language" }).of(code);
-    if (name && name !== code) {
+    if (name && name.toLowerCase() !== code.toLowerCase()) {
       // CLDR lowercases some (es -> "español"); a menu wants a capital.
       return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
     }
@@ -225,13 +248,14 @@ function localeLabel(code) {
 
 /**
  * Country of the flag to fly. A language is not a country, so this is CLDR's
- * "most likely region" for the bare code (`maximize()`), exactly as the
- * portal does it. Only a two-letter region is a country: `eo` maximizes to
- * `001`, the world, which flies no flag. Empty when unknown.
+ * "most likely region" for the tag (`maximize()`), exactly as the portal does
+ * it; a tag that already names a region (`pt-BR`) keeps it. Only a two-letter
+ * region is a country: `eo` maximizes to `001`, the world, which flies no
+ * flag. Empty when unknown.
  */
 function localeCountry(code) {
-  var entry = localeEntry(code);
-  if (entry && entry.country !== undefined) return entry.country || "";
+  var override = localeOverride(code);
+  if (override && override.country !== undefined) return override.country || "";
   try {
     var region = new Intl.Locale(code).maximize().region;
     if (region && /^[A-Za-z]{2}$/.test(region)) return region.toUpperCase();
@@ -262,8 +286,8 @@ function localeOptionLabel(code) {
 }
 
 function localeDirection(code) {
-  var entry = localeEntry(code);
-  if (entry && typeof entry.rtl === "boolean") return entry.rtl ? "rtl" : "ltr";
+  var override = localeOverride(code);
+  if (override && typeof override.rtl === "boolean") return override.rtl ? "rtl" : "ltr";
   try {
     // Newer V8 exposes CLDR's script direction on the locale itself.
     var loc = new Intl.Locale(code);
@@ -272,22 +296,23 @@ function localeDirection(code) {
   } catch (err) {
     // fall through to the static list
   }
-  return RTL_FALLBACK.indexOf(code) !== -1 ? "rtl" : "ltr";
+  return RTL_FALLBACK.indexOf(baseLanguage(code)) !== -1 ? "rtl" : "ltr";
 }
 
 /**
- * Run this from the Apps Script editor after adding a language: it logs what
- * each registry entry derives to on the real runtime, so a missing Intl
- * feature shows up here rather than in a user's dropdown.
+ * Run this from the Apps Script editor to see what codes derive to on the
+ * real runtime, so a missing Intl feature shows up here rather than in a
+ * user's dropdown. Pass the codes to check; defaults to the shipped ones.
  */
-function debugLocaleRegistry() {
-  LOCALES.forEach(function (entry) {
-    console.log(entry.code, {
-      label: localeLabel(entry.code),
-      country: localeCountry(entry.code),
-      flag: localeFlag(entry.code),
-      direction: localeDirection(entry.code),
-      option: localeOptionLabel(entry.code),
+function debugLocaleDerivation(codes) {
+  (codes || shippedLocales()).forEach(function (code) {
+    console.log(code, {
+      label: localeLabel(code),
+      country: localeCountry(code),
+      flag: localeFlag(code),
+      direction: localeDirection(code),
+      option: localeOptionLabel(code),
+      hasCatalogue: catalogueFor(code) !== null,
     });
   });
 }
@@ -298,6 +323,21 @@ function debugLocaleRegistry() {
 
 /** Locale of the current execution. Set by initLocale(); read by t(). */
 var currentLocale = DEFAULT_LOCALE;
+
+/** The shipped catalogue for a tag: exact (`pt-br`), then base (`pt`), else null. */
+function catalogueFor(code) {
+  if (!code) return null;
+  var lower = String(code).toLowerCase();
+  var keys = Object.keys(MESSAGES);
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i].toLowerCase() === lower) return MESSAGES[keys[i]];
+  }
+  var base = baseLanguage(lower);
+  for (var j = 0; j < keys.length; j++) {
+    if (keys[j].toLowerCase() === base) return MESSAGES[keys[j]];
+  }
+  return null;
+}
 
 function lookupMessage(catalog, key) {
   var node = catalog;
@@ -315,9 +355,10 @@ function lookupMessage(catalog, key) {
  * and then to the key itself, so a gap in a catalogue never breaks a card.
  */
 function t(key, params) {
-  var text = lookupMessage(MESSAGES[currentLocale] || {}, key);
+  var catalogue = catalogueFor(currentLocale);
+  var text = catalogue ? lookupMessage(catalogue, key) : undefined;
   if (text === undefined) {
-    if (currentLocale !== DEFAULT_LOCALE) {
+    if (catalogue && currentLocale !== DEFAULT_LOCALE) {
       console.warn("t|missing translation|", { locale: currentLocale, key: key });
     }
     text = lookupMessage(MESSAGES[DEFAULT_LOCALE], key);
@@ -416,17 +457,30 @@ function preferredLanguageCached(identity) {
 }
 
 /**
- * Languages we can put on screen: the account's list narrowed to the ones
- * we ship. Unreadable list -> everything we ship. Configured-empty or nothing
- * we can render -> English only (which hides the dropdown).
+ * What the dropdown offers: exactly the account's supported list, in the
+ * backend's order, with the backend's own codes (the PATCH only accepts
+ * those). Malformed entries and duplicates are dropped. Unreadable list ->
+ * the languages we ship copy for. Configured-empty -> English only, which
+ * hides the dropdown.
  */
 function resolveOptions(supported) {
-  if (supported === null) return LOCALE_CODES.slice();
-  var options = supported.filter(isLocale);
-  var untranslated = supported.filter(function (c) { return !isLocale(c); });
+  if (supported === null) return shippedLocales();
+  var options = [];
+  var seen = {};
+  supported.forEach(function (code) {
+    var trimmed = typeof code === "string" ? code.trim() : "";
+    var key = trimmed.toLowerCase();
+    if (!isLocale(trimmed) || seen[key]) {
+      if (trimmed) console.warn("resolveOptions|dropping entry|", { code: code });
+      return;
+    }
+    seen[key] = true;
+    options.push(trimmed);
+  });
+  var untranslated = options.filter(function (c) { return catalogueFor(c) === null; });
   if (untranslated.length > 0) {
-    console.warn("resolveOptions|account allows languages the add-on does not ship|", {
-      untranslated: untranslated, offered: options,
+    console.warn("resolveOptions|offered without a shipped catalogue - card copy falls back to English|", {
+      untranslated: untranslated,
     });
   }
   return options.length > 0 ? options : [DEFAULT_LOCALE];
@@ -470,12 +524,11 @@ async function getLanguageContext(e) {
   var remembered = rememberedLocale();
   var device = deviceLocale(e);
 
-  var locale;
-  if (isLocale(preferred) && options.indexOf(preferred) !== -1) locale = preferred;
-  else if (remembered && options.indexOf(remembered) !== -1) locale = remembered;
-  else if (device && options.indexOf(device) !== -1) locale = device;
-  else if (options.indexOf(DEFAULT_LOCALE) !== -1) locale = DEFAULT_LOCALE;
-  else locale = options[0];
+  var locale = matchOption(options, preferred) ||
+    matchOption(options, remembered) ||
+    matchOption(options, device) ||
+    matchOption(options, DEFAULT_LOCALE) ||
+    options[0];
 
   currentLocale = locale;
   languageContextMemo = { locale: locale, options: options, identity: identity };
@@ -539,10 +592,13 @@ function buildLanguageSelector(ctx) {
 async function onLanguageChange(e) {
   console.log("onLanguageChange|called!");
   var ctx = await getLanguageContext(e);
-  var chosen = normalizeLocale(readFormInput(e, "language"));
-  console.log("onLanguageChange|", { chosen: chosen, offered: ctx.options });
+  // The dropdown value is the backend's own code; keep it verbatim, since
+  // the PATCH accepts only codes from the account's supported list.
+  var raw = readFormInput(e, "language");
+  var chosen = raw && ctx.options.indexOf(raw) !== -1 ? raw : null;
+  console.log("onLanguageChange|", { raw: raw, chosen: chosen, offered: ctx.options });
 
-  if (!chosen || ctx.options.indexOf(chosen) === -1) {
+  if (!chosen) {
     return CardService.newActionResponseBuilder()
       .setNotification(CardService.newNotification().setText(t("language.invalid")))
       .build();
