@@ -53,9 +53,10 @@ PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=
 list from `GET /public/accounts/supported-languages`, in the backend's order,
 using the backend's codes. Admins add or remove languages there; nothing in
 the add-on changes. Name and flag for each option are derived from the code
-(`Intl.DisplayNames`, `Intl.Locale#maximize`). If the list cannot be read,
-the languages with shipped card copy are offered. If fewer than two remain,
-the dropdown is hidden and that one language is used.
+(`Intl.DisplayNames`, `Intl.Locale#maximize`). If fewer than two remain,
+the dropdown is hidden and that one language is used. If the list cannot be
+read at all (no service key, unknown domain, network), the dropdown is hidden
+and the card stays in English; the backend is the only source of the offer.
 
 **Which language a card renders in**, first match wins:
 

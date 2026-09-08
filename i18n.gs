@@ -6,8 +6,8 @@
  *
  *   options   = exactly the account's supported languages from the backend
  *               (admins add/remove them there; nothing here needs to change).
- *               Hidden when fewer than two remain. If the list is unreadable,
- *               the languages we ship copy for are offered instead.
+ *               Hidden when fewer than two remain, and hidden when the list
+ *               cannot be read at all: no guessing on the backend's behalf.
  *   locale    = stored preference on the account
  *               -> last explicit choice on this device
  *               -> Gmail's UI language, if we ship it
@@ -43,7 +43,7 @@ var LANGUAGE_TAG_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
 
 var DEFAULT_LOCALE = "en";
 
-/** Languages we ship card copy for; the fallback offer when the API is unreadable. */
+/** Languages we ship card copy for. */
 function shippedLocales() {
   return Object.keys(MESSAGES);
 }
@@ -459,12 +459,16 @@ function preferredLanguageCached(identity) {
 /**
  * What the dropdown offers: exactly the account's supported list, in the
  * backend's order, with the backend's own codes (the PATCH only accepts
- * those). Malformed entries and duplicates are dropped. Unreadable list ->
- * the languages we ship copy for. Configured-empty -> English only, which
- * hides the dropdown.
+ * those). Malformed entries and duplicates are dropped. Unreadable list
+ * (network, 401 missing key, 404 unknown domain) or configured-empty ->
+ * English only, which hides the dropdown: the backend is the only source of
+ * the offer, so when it cannot answer we offer nothing rather than a guess.
  */
 function resolveOptions(supported) {
-  if (supported === null) return shippedLocales();
+  if (supported === null) {
+    console.warn("resolveOptions|supported list unreadable - selector hidden, English used");
+    return [DEFAULT_LOCALE];
+  }
   var options = [];
   var seen = {};
   supported.forEach(function (code) {
@@ -534,7 +538,7 @@ async function getLanguageContext(e) {
   languageContextMemo = { locale: locale, options: options, identity: identity };
   console.log("getLanguageContext|resolved|", {
     domain: domain,
-    supported: supported === null ? "unreadable (offering every shipped language)" : supported,
+    supported: supported === null ? "unreadable (selector hidden)" : supported,
     offered: options,
     preferred: preferred || "none stored",
     remembered: remembered || "none",

@@ -107,8 +107,8 @@ function parseJsonSafe(text) {
 
 /**
  * Language codes the account's admins have switched on.
- * Returns `null` when the list could not be read (caller offers every shipped
- * language); an empty array is a real answer (account configured nothing).
+ * Returns `null` when the list could not be read (caller hides the selector);
+ * an empty array is a real answer (account configured nothing).
  */
 function getSupportedLanguages(domain, region) {
   var url = unificationBase(region) + SUPPORTED_LANGUAGES_PATH +
