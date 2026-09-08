@@ -1,10 +1,15 @@
-var version = "v 2.4.4"
-var heading = CardService.newTextParagraph().setText(
-  `<b>Cybernut Reporting Tool</b>  ${version}`
-);
-var alreadyClickedHeading = CardService.newTextParagraph().setText(
-  "<b>WAIT - Did you accidentally click on something in this email?</b>"
-);
+var version = "v 2.5.0"
+
+/** Product name is a brand; only the surrounding copy is translated. */
+function headingWidget() {
+  return CardService.newTextParagraph().setText(
+    `<b>Cybernut Reporting Tool</b>  ${version}`
+  );
+}
+
+function alreadyClickedHeadingWidget() {
+  return CardService.newTextParagraph().setText(t("step1.waitHeading"));
+}
 
 async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
@@ -313,19 +318,16 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
 
 
 
-let defaultMessageForThirdStep =
-  "Thank you, you will hear back from IT if you need to take any further action.";
 let adminMessageForThirdStep = "";
 
+/** Uses whatever locale the entry point resolved (English before any did). */
 function buildErrorCard() {
   var cardBuilder = CardService.newCardBuilder();
   var section = CardService.newCardSection();
-  var textWidget = CardService.newTextParagraph().setText(
-    "There was an error in completing your action, for escalation / faster resolution you can contact us at support@cybernut.com"
-  );
+  var textWidget = CardService.newTextParagraph().setText(t("error.generic"));
 
   var closeButton = CardService.newTextButton()
-    .setText("Close")
+    .setText(t("common.close"))
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
     .setBackgroundColor("#4285F4")
     .setOnClickAction(CardService.newAction().setFunctionName("HomePage"));
@@ -336,30 +338,56 @@ function buildErrorCard() {
   return cardBuilder.build();
 }
 
+function onboardingFooter() {
+  return CardService.newFixedFooter().setPrimaryButton(
+    CardService.newTextButton()
+      .setText(t("home.onboardingButton"))
+      .setDisabled(false)
+      .setOnClickAction(
+        CardService.newAction().setFunctionName("openLearnAddonLink")
+      )
+  );
+}
 
+/**
+ * The home card itself, with no telemetry side effects: HomePage() wraps it
+ * for the trigger, and the language dropdown redraws it after a switch.
+ */
+async function buildHomeCard(e) {
+  const ctx = await getLanguageContext(e);
 
+  var reportButton = CardService.newTextButton()
+    .setText(t("home.reportButton"))
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor("#D83025")
+    .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
+
+  var builder = CardService.newCardBuilder();
+  builder.addSection(
+    CardService.newCardSection()
+      .setCollapsible(false)
+      .setNumUncollapsibleWidgets(1)
+      .addWidget(headingWidget())
+      .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
+  );
+
+  if (e) {
+    builder.addSection(CardService.newCardSection().addWidget(reportButton));
+  }
+
+  const languageSelector = buildLanguageSelector(ctx);
+  if (languageSelector) {
+    builder.addSection(CardService.newCardSection().addWidget(languageSelector));
+  }
+
+  builder.setFixedFooter(onboardingFooter());
+  return builder.build();
+}
 
 async function HomePage(e) {
   console.log('HomePage|called!');
   try {
-    var reportButton = CardService.newTextButton()
-      .setText("Report Email")
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      .setBackgroundColor("#D83025")
-      .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
-
-    var builder = CardService.newCardBuilder();
-    builder.addSection(
-      CardService.newCardSection()
-        .setCollapsible(false)
-        .setNumUncollapsibleWidgets(1)
-        .addWidget(heading)
-        .addWidget(
-          CardService.newTextParagraph().setText(
-            "Suspicious content or sender? Report it for further analysis."
-          )
-        )
-    );
+    await initLocale(e);
 
     if (e.gmail) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
@@ -371,22 +399,7 @@ async function HomePage(e) {
       await callErrorReportingApi("Home function run perfectly in inbox folder", "none");
     }
 
-    if (e) {
-      builder.addSection(CardService.newCardSection().addWidget(reportButton));
-    }
-
-    builder.setFixedFooter(
-      CardService.newFixedFooter().setPrimaryButton(
-        CardService.newTextButton()
-          .setText("Onboarding Tutorial")
-          .setDisabled(false)
-          .setOnClickAction(
-            CardService.newAction().setFunctionName("openLearnAddonLink")
-          )
-      )
-    );
-
-    var card = builder.build();
+    var card = await buildHomeCard(e);
     console.log('HomePage|card|built and returning!');
     return card;
   } catch (error) {
@@ -396,10 +409,35 @@ async function HomePage(e) {
   }
 }
 
+/**
+ * Checkbox values stay in English on purpose: they are what IT receives in
+ * the report body (handleStep2 joins them), so they must not vary by locale.
+ * Only the labels the user sees are translated.
+ */
+function buildActionsCheckboxGroup() {
+  return CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.CHECK_BOX)
+    .setFieldName("selectedItems")
+    .addItem(t("step1.actions.replied"), "I replied to the email", false)
+    .addItem(t("step1.actions.downloaded"), "I downloaded a file", false)
+    .addItem(t("step1.actions.openedAttachment"), "I opened an attachment", false)
+    .addItem(t("step1.actions.visitedLink"), "I visited a link", false)
+    .addItem(t("step1.actions.enteredPassword"), "I entered my password", false)
+    .addItem(t("step1.actions.forwarded"), "I forwarded the email", false)
+    .addItem(t("step1.actions.loggedIn"), "I logged into a page", false)
+    .addItem(t("step1.actions.none"), "None of the above", false);
+}
+
 async function handleStep1(e) {
   console.log('handleStep1|called!');
   let bodyHtml = "";
   let mailMessage = null;
+
+  try {
+    await initLocale(e);
+  } catch (localeErr) {
+    console.log('handleStep1|locale resolution failed|falling back to English|', localeErr.message);
+  }
 
   // Fetch message once — reused throughout the function
   if (e?.messageMetadata?.messageId) {
@@ -409,20 +447,10 @@ async function handleStep1(e) {
   }
 
   try {
-    var checkboxGroup = CardService.newSelectionInput()
-      .setType(CardService.SelectionInputType.CHECK_BOX)
-      .setFieldName("selectedItems")
-      .addItem("I replied to the email", "I replied to the email", false)
-      .addItem("I downloaded a file", "I downloaded a file", false)
-      .addItem("I opened an attachment", "I opened an attachment", false)
-      .addItem("I visited a link", "I visited a link", false)
-      .addItem("I entered my password", "I entered my password", false)
-      .addItem("I forwarded the email", "I forwarded the email", false)
-      .addItem("I logged into a page", "I logged into a page", false)
-      .addItem("None of the above", "None of the above", false);
+    var checkboxGroup = buildActionsCheckboxGroup();
 
     var reportButton = CardService.newTextButton()
-      .setText("Report Email")
+      .setText(t("home.reportButton"))
       .setOnClickAction(CardService.newAction().setFunctionName("handleStep2"))
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setBackgroundColor("#D83025");
@@ -431,9 +459,7 @@ async function handleStep1(e) {
       console.log('handleStep1|no messageId|showing open-email prompt');
       var cardBuilder = CardService.newCardBuilder();
       var section = CardService.newCardSection();
-      var textWidget = CardService.newTextParagraph().setText(
-        "Please open the email and look for the button in the top left corner. Click on it to go back and find the report button."
-      );
+      var textWidget = CardService.newTextParagraph().setText(t("step1.openEmailPrompt"));
       section.addWidget(textWidget);
       cardBuilder.addSection(section);
       return cardBuilder.build();
@@ -515,30 +541,13 @@ async function handleStep1(e) {
             CardService.newCardSection()
               .setCollapsible(false)
               .setNumUncollapsibleWidgets(1)
-              .addWidget(alreadyClickedHeading)
-              .addWidget(
-                CardService.newTextParagraph().setText(
-                  "<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"
-                )
-              )
-              .addWidget(
-                CardService.newTextParagraph().setText(
-                  "Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "
-                )
-              )
+              .addWidget(alreadyClickedHeadingWidget())
+              .addWidget(CardService.newTextParagraph().setText(t("step1.reassurance")))
+              .addWidget(CardService.newTextParagraph().setText(t("step1.selectPrompt")))
               .addWidget(checkboxGroup)
               .addWidget(reportButton)
           );
-          builder.setFixedFooter(
-            CardService.newFixedFooter().setPrimaryButton(
-              CardService.newTextButton()
-                .setText("Onboarding Tutorial")
-                .setDisabled(false)
-                .setOnClickAction(
-                  CardService.newAction().setFunctionName("openLearnAddonLink")
-                )
-            )
-          );
+          builder.setFixedFooter(onboardingFooter());
           console.log('handleStep1|showing checkbox card');
           return builder.build();
         }
@@ -561,6 +570,12 @@ async function handleStep1(e) {
 async function handleStep2(e) {
   console.log('handleStep2|called!');
   let bodyHtml = "";
+
+  try {
+    await initLocale(e);
+  } catch (localeErr) {
+    console.log('handleStep2|locale resolution failed|falling back to English|', localeErr.message);
+  }
 
   try {
     var selectedItemsValues = e.formInputs?.selectedItems;
@@ -637,11 +652,11 @@ async function handleStep2(e) {
     var section = CardService.newCardSection()
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
-      .addWidget(heading)
+      .addWidget(headingWidget())
       .addWidget(CardService.newTextParagraph().setText(
         suspiciousEmailResponse.CONFIRMATION_MESSAGE
           ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          : defaultMessageForThirdStep
+          : t("step2.defaultConfirmation")
       ));
 
     let isVerifiedDomain = false;
@@ -658,7 +673,7 @@ async function handleStep2(e) {
     if (isVerifiedDomain === true) {
       console.log('handleStep2|moving email to trash');
       mailMessage.moveToTrash();
-      section.addWidget(CardService.newTextParagraph().setText('Email moved to trash. Please refresh your Gmail view.'));
+      section.addWidget(CardService.newTextParagraph().setText(t("step2.movedToTrash")));
     }
 
     builder.addSection(section);
@@ -667,16 +682,7 @@ async function handleStep2(e) {
     console.log('handleStep2|checkInbox|', { checkInbox });
 
     if (checkInbox) {
-      builder.setFixedFooter(
-        CardService.newFixedFooter().setPrimaryButton(
-          CardService.newTextButton()
-            .setText("Onboarding Tutorial")
-            .setDisabled(false)
-            .setOnClickAction(
-              CardService.newAction().setFunctionName("openLearnAddonLink")
-            )
-        )
-      );
+      builder.setFixedFooter(onboardingFooter());
     }
 
     var card = builder.build();
