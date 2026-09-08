@@ -279,18 +279,7 @@ function localeFlag(code) {
   return String.fromCodePoint(base + country.charCodeAt(0), base + country.charCodeAt(1));
 }
 
-/**
- * Flag image for the locale's country, off flagcdn like the portal's picker
- * (so a new language needs no committed asset). 80px wide so it stays crisp
- * on retina screens at the icon size cards render. Empty when no country.
- */
-function localeFlagUrl(code) {
-  var country = localeCountry(code);
-  if (!/^[A-Z]{2}$/.test(country)) return "";
-  return "https://flagcdn.com/w80/" + country.toLowerCase() + ".png";
-}
-
-/** Text-only row label: flag emoji then native name, e.g. "🇪🇸 Español". */
+/** What a dropdown row shows: flag then native name, e.g. "🇪🇸 Español". */
 function localeOptionLabel(code) {
   var flag = localeFlag(code);
   return flag ? flag + " " + localeLabel(code) : localeLabel(code);
@@ -581,118 +570,37 @@ function readFormInput(e, name) {
   return null;
 }
 
-/** Brand blue from the manifest's layoutProperties; the portal's trigger colour. */
-var LANGUAGE_ACCENT_COLOR = "#354CF0";
-
-/** Action parameter that carries the picked code from the picker card. */
-var LANGUAGE_PARAM = "language";
-
 /**
- * A Material Symbols icon for cards, or null on a runtime without
- * MaterialIcon support so callers can degrade to text.
- */
-function materialIcon(name) {
-  try {
-    return CardService.newIconImage().setMaterialIcon(
-      CardService.newMaterialIcon().setName(name)
-    );
-  } catch (err) {
-    console.log("materialIcon|unavailable|", { name: name, error: err.message });
-    return null;
-  }
-}
-
-/** Flag image icon for a code, or null when the language flies no flag. */
-function flagIcon(code) {
-  var url = localeFlagUrl(code);
-  if (!url) return null;
-  return CardService.newIconImage().setIconUrl(url).setAltText(localeLabel(code));
-}
-
-/**
- * The compact trigger the portal shows: flag, language name in brand blue,
- * chevron. Sits at the top of the home card and opens the picker. Null when
- * the account leaves the user no choice (one language is no choice at all).
+ * The language dropdown, or null when the account leaves the user no choice
+ * (one language is no choice at all, so nothing is rendered).
  */
 function buildLanguageSelector(ctx) {
   if (!ctx || !ctx.identity || ctx.options.length < 2) return null;
-  var chevron = materialIcon("expand_more");
-  var row = CardService.newDecoratedText()
-    .setText(
-      '<font color="' + LANGUAGE_ACCENT_COLOR + '"><b>' + localeLabel(ctx.locale) + "</b></font>" +
-      (chevron ? "" : " ▾")
-    )
-    .setOnClickAction(CardService.newAction().setFunctionName("openLanguagePicker"));
-  var flag = flagIcon(ctx.locale);
-  if (flag) row.setStartIcon(flag);
-  if (chevron) row.setEndIcon(chevron);
-  return row;
-}
-
-/**
- * The picker card: one row per language the account offers, flag first,
- * native name, and a check on the current one - the portal's menu as a card.
- */
-function buildLanguagePickerCard(ctx) {
-  var section = CardService.newCardSection();
-  var check = materialIcon("check");
+  var dropdown = CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.DROPDOWN)
+    .setFieldName("language")
+    .setTitle(t("common.languageSelectLabel"))
+    .setOnChangeAction(CardService.newAction().setFunctionName("onLanguageChange"));
   ctx.options.forEach(function (code) {
-    var current = code === ctx.locale;
-    var name = localeLabel(code);
-    var text = current
-      ? '<font color="' + LANGUAGE_ACCENT_COLOR + '"><b>' + name + "</b></font>" + (check ? "" : " ✓")
-      : name;
-    var row = CardService.newDecoratedText()
-      .setText(text)
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName("onLanguageChange")
-          .setParameters({ language: code, fromPicker: "1" })
-      );
-    var flag = flagIcon(code);
-    if (flag) row.setStartIcon(flag);
-    if (current && check) row.setEndIcon(check);
-    section.addWidget(row);
+    dropdown.addItem(localeOptionLabel(code), code, code === ctx.locale);
   });
-  return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle(t("common.languageSelectLabel")))
-    .addSection(section)
-    .build();
-}
-
-/** Trigger handler: push the picker card. */
-async function openLanguagePicker(e) {
-  console.log("openLanguagePicker|called!");
-  var ctx = await getLanguageContext(e);
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().pushCard(buildLanguagePickerCard(ctx)))
-    .build();
-}
-
-/** An Action parameter, from either event shape Gmail add-ons produce. */
-function readActionParameter(e, name) {
-  var modern = e && e.commonEventObject && e.commonEventObject.parameters;
-  if (modern && typeof modern[name] === "string") return modern[name];
-  var legacy = e && e.parameters;
-  if (legacy && typeof legacy[name] === "string") return legacy[name];
-  return null;
+  return dropdown;
 }
 
 /**
- * Picker row handler. Same write order as the portal's saveLanguageChoice():
+ * Dropdown handler. Same write order as the portal's saveLanguageChoice():
  * remember locally first (so a rejected or unreachable PATCH never strands
  * the user on a language they just left), then persist on the account, then
- * close the picker and redraw the home card in the new language.
+ * redraw the home card in the new language.
  */
 async function onLanguageChange(e) {
   console.log("onLanguageChange|called!");
   var ctx = await getLanguageContext(e);
-  // The value is the backend's own code; keep it verbatim, since the PATCH
-  // accepts only codes from the account's supported list.
-  var raw = readActionParameter(e, LANGUAGE_PARAM) || readFormInput(e, LANGUAGE_PARAM);
+  // The dropdown value is the backend's own code; keep it verbatim, since
+  // the PATCH accepts only codes from the account's supported list.
+  var raw = readFormInput(e, "language");
   var chosen = raw && ctx.options.indexOf(raw) !== -1 ? raw : null;
-  var fromPicker = readActionParameter(e, "fromPicker") === "1";
-  console.log("onLanguageChange|", { raw: raw, chosen: chosen, offered: ctx.options, fromPicker: fromPicker });
+  console.log("onLanguageChange|", { raw: raw, chosen: chosen, offered: ctx.options });
 
   if (!chosen) {
     return CardService.newActionResponseBuilder()
@@ -713,11 +621,8 @@ async function onLanguageChange(e) {
   }
 
   var card = await buildHomeCard(e);
-  var navigation = CardService.newNavigation();
-  if (fromPicker) navigation.popCard();
-  navigation.updateCard(card);
   return CardService.newActionResponseBuilder()
-    .setNavigation(navigation)
+    .setNavigation(CardService.newNavigation().updateCard(card))
     .setNotification(CardService.newNotification().setText(
       saved ? t("language.updated") : t("language.savedLocallyOnly")
     ))

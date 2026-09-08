@@ -49,20 +49,14 @@ GET   /public/users/preferred-language?domain=acme.org&email=jane@acme.org
 PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
 ```
 
-**Which languages the selector offers**: exactly the account's supported
+**Which languages the dropdown offers**: exactly the account's supported
 list from `GET /public/accounts/supported-languages`, in the backend's order,
 using the backend's codes. Admins add or remove languages there; nothing in
 the add-on changes. Name and flag for each option are derived from the code
 (`Intl.DisplayNames`, `Intl.Locale#maximize`). If fewer than two remain,
-the selector is hidden and that one language is used. If the list cannot be
-read at all (no service key, unknown domain, network), the selector is hidden
+the dropdown is hidden and that one language is used. If the list cannot be
+read at all (no service key, unknown domain, network), the dropdown is hidden
 and the card stays in English; the backend is the only source of the offer.
-
-**How it looks**: the home card opens with a compact row at the top, matching
-the portal's picker: the current language's flag (flagcdn image), its native
-name in the brand blue, and a chevron. Tapping it pushes a "Select language"
-card with one row per language, flag first, and a check on the current one.
-Picking a row saves, closes the picker and redraws the home card.
 
 **Which language a card renders in**, first match wins:
 
