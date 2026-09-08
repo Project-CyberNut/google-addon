@@ -70,10 +70,14 @@ an hour; a change made in the add-on is immediate.
 
 ### Adding a language
 
-1. Add `{ code, label, country, rtl }` to `LOCALES` in `i18n.gs`. `label` is
-   the native name and is deliberately not translated. `country` is the ISO
-   3166 code of the flag to show (same choice as the portal's picker: en → US,
-   es → ES, ar → EG); it is rendered as an emoji flag in the dropdown.
+1. Add `{ code: "xx" }` to `LOCALES` in `i18n.gs`. The native name
+   (`Intl.DisplayNames`), the flag's country (`Intl.Locale#maximize`, the
+   same CLDR rule the portal's picker uses: en → US, es → ES, ar → EG) and the
+   text direction are derived from the code. Override any of them with
+   `label`, `country` or `rtl` on the entry when CLDR's answer is not the one
+   wanted. The flag is rendered as an emoji in the dropdown.
+   Run `debugLocaleRegistry()` in the Apps Script editor once to confirm the
+   runtime derives what you expect.
 2. Add a full catalogue under `MESSAGES[code]` with the same keys as `en`.
    A missing key falls back to English and logs a warning.
 3. Nothing else changes: the dropdown, resolution and API calls read the

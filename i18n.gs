@@ -14,22 +14,33 @@
  *   on change = remember locally first (so a failed save never strands the
  *               user), then PATCH the preference to the account
  *
- * Adding a language: add one entry to LOCALES and one catalogue to MESSAGES.
- * Nothing else changes. Keep every catalogue key in sync with `en`; `t()`
+ * Adding a language: add its code to LOCALES and one catalogue to MESSAGES.
+ * Name, flag and direction are derived from the code. Nothing else changes. Keep every catalogue key in sync with `en`; `t()`
  * falls back to English for a missing key and logs it.
  */
 
 /**
- * Registry. `label` is the native name on purpose (never translated).
- * `country` is the flag to fly, as an ISO 3166 code: a language is not a
- * country, so this follows the portal's LanguagePicker (CLDR's most likely
- * region: en -> US, es -> ES, ar -> EG). Leave it empty for no flag.
+ * Registry. Only `code` is required: the native name, the flag's country and
+ * the text direction are derived from the code at runtime via `Intl`, the
+ * same way the portal's LanguagePicker does it (CLDR likely subtags: en -> US,
+ * es -> ES, ar -> EG). So adding a language is normally just its code.
+ *
+ * Optional overrides, for when CLDR's answer is not the one wanted:
+ *   label    native name shown in the dropdown (never translated)
+ *   country  ISO 3166 code of the flag to fly; "" for no flag
+ *   rtl      true/false
+ *
+ * Run `debugLocaleRegistry()` in the Apps Script editor to see what each
+ * code derives to on the real runtime.
  */
 var LOCALES = [
-  { code: "en", label: "English", country: "US", rtl: false },
-  { code: "es", label: "Español", country: "ES", rtl: false },
-  { code: "ar", label: "العربية", country: "EG", rtl: true },
+  { code: "en" },
+  { code: "es" },
+  { code: "ar" },
 ];
+
+/** Used only when `Intl.Locale` cannot tell us; CLDR knows the rest. */
+var RTL_FALLBACK = ["ar", "he", "fa", "ur"];
 
 var DEFAULT_LOCALE = "en";
 
@@ -191,9 +202,43 @@ function localeEntry(code) {
   return null;
 }
 
+/**
+ * Native name of the language, e.g. "Español", "العربية": what the portal
+ * shows, so every reader can find their own language whatever the page is
+ * currently in. Override wins; otherwise CLDR via Intl.DisplayNames, in the
+ * language itself; last resort the bare code.
+ */
 function localeLabel(code) {
   var entry = localeEntry(code);
-  return entry ? entry.label : code;
+  if (entry && entry.label) return entry.label;
+  try {
+    var name = new Intl.DisplayNames([code], { type: "language" }).of(code);
+    if (name && name !== code) {
+      // CLDR lowercases some (es -> "español"); a menu wants a capital.
+      return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
+    }
+  } catch (err) {
+    console.log("localeLabel|Intl.DisplayNames unavailable|", { code: code, error: err.message });
+  }
+  return code;
+}
+
+/**
+ * Country of the flag to fly. A language is not a country, so this is CLDR's
+ * "most likely region" for the bare code (`maximize()`), exactly as the
+ * portal does it. Only a two-letter region is a country: `eo` maximizes to
+ * `001`, the world, which flies no flag. Empty when unknown.
+ */
+function localeCountry(code) {
+  var entry = localeEntry(code);
+  if (entry && entry.country !== undefined) return entry.country || "";
+  try {
+    var region = new Intl.Locale(code).maximize().region;
+    if (region && /^[A-Za-z]{2}$/.test(region)) return region.toUpperCase();
+  } catch (err) {
+    console.log("localeCountry|Intl.Locale unavailable|", { code: code, error: err.message });
+  }
+  return "";
 }
 
 /**
@@ -201,15 +246,13 @@ function localeLabel(code) {
  * symbols (`US` -> 🇺🇸). CardService dropdown items are plain text, so an
  * emoji is the only way to show a flag there; Gmail renders it as an image on
  * web, Android and iOS. Windows has no flag glyphs and shows the two letters
- * instead, which still reads fine. Empty when the entry has no country.
+ * instead, which still reads fine. Empty when there is no country.
  */
 function localeFlag(code) {
-  var entry = localeEntry(code);
-  var country = entry && entry.country;
-  if (!country || !/^[A-Za-z]{2}$/.test(country)) return "";
-  var upper = country.toUpperCase();
+  var country = localeCountry(code);
+  if (!/^[A-Z]{2}$/.test(country)) return "";
   var base = 0x1f1e6 - 65; // regional indicator A minus "A"
-  return String.fromCodePoint(base + upper.charCodeAt(0), base + upper.charCodeAt(1));
+  return String.fromCodePoint(base + country.charCodeAt(0), base + country.charCodeAt(1));
 }
 
 /** What a dropdown row shows: flag then native name, e.g. "🇪🇸 Español". */
@@ -219,10 +262,34 @@ function localeOptionLabel(code) {
 }
 
 function localeDirection(code) {
-  for (var i = 0; i < LOCALES.length; i++) {
-    if (LOCALES[i].code === code) return LOCALES[i].rtl ? "rtl" : "ltr";
+  var entry = localeEntry(code);
+  if (entry && typeof entry.rtl === "boolean") return entry.rtl ? "rtl" : "ltr";
+  try {
+    // Newer V8 exposes CLDR's script direction on the locale itself.
+    var loc = new Intl.Locale(code);
+    var info = typeof loc.getTextInfo === "function" ? loc.getTextInfo() : loc.textInfo;
+    if (info && info.direction) return info.direction;
+  } catch (err) {
+    // fall through to the static list
   }
-  return "ltr";
+  return RTL_FALLBACK.indexOf(code) !== -1 ? "rtl" : "ltr";
+}
+
+/**
+ * Run this from the Apps Script editor after adding a language: it logs what
+ * each registry entry derives to on the real runtime, so a missing Intl
+ * feature shows up here rather than in a user's dropdown.
+ */
+function debugLocaleRegistry() {
+  LOCALES.forEach(function (entry) {
+    console.log(entry.code, {
+      label: localeLabel(entry.code),
+      country: localeCountry(entry.code),
+      flag: localeFlag(entry.code),
+      direction: localeDirection(entry.code),
+      option: localeOptionLabel(entry.code),
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
