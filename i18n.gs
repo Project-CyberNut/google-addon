@@ -628,3 +628,22 @@ async function onLanguageChange(e) {
     ))
     .build();
 }
+
+/**
+ * Run from the Apps Script editor to forget the cached region, supported list
+ * and stored preference for the signed-in user (the cache is per user and
+ * per script, so running it as yourself clears your own). Use it after an
+ * admin changes the account's supported languages, so the next card render
+ * asks the backend again instead of waiting out the cache.
+ */
+function clearLanguageCache() {
+  var cache = CacheService.getUserCache();
+  var email = Session.getActiveUser().getEmail();
+  var domain = accountDomainFromEmail(email);
+  cache.remove(CACHE_KEY_PREFERRED);
+  if (domain) {
+    cache.remove(CACHE_KEY_SUPPORTED + domain);
+    cache.remove(CACHE_KEY_REGION + domain);
+  }
+  console.log("clearLanguageCache|done|", { email: email, domain: domain });
+}
