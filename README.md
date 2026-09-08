@@ -70,8 +70,10 @@ an hour; a change made in the add-on is immediate.
 
 ### Adding a language
 
-1. Add `{ code, label, rtl }` to `LOCALES` in `i18n.gs`. `label` is the native
-   name and is deliberately not translated.
+1. Add `{ code, label, country, rtl }` to `LOCALES` in `i18n.gs`. `label` is
+   the native name and is deliberately not translated. `country` is the ISO
+   3166 code of the flag to show (same choice as the portal's picker: en → US,
+   es → ES, ar → EG); it is rendered as an emoji flag in the dropdown.
 2. Add a full catalogue under `MESSAGES[code]` with the same keys as `en`.
    A missing key falls back to English and logs a warning.
 3. Nothing else changes: the dropdown, resolution and API calls read the

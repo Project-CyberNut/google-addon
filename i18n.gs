@@ -19,11 +19,16 @@
  * falls back to English for a missing key and logs it.
  */
 
-/** Registry. `label` is the native name on purpose (never translated). */
+/**
+ * Registry. `label` is the native name on purpose (never translated).
+ * `country` is the flag to fly, as an ISO 3166 code: a language is not a
+ * country, so this follows the portal's LanguagePicker (CLDR's most likely
+ * region: en -> US, es -> ES, ar -> EG). Leave it empty for no flag.
+ */
 var LOCALES = [
-  { code: "en", label: "English", rtl: false },
-  { code: "es", label: "Español", rtl: false },
-  { code: "ar", label: "العربية", rtl: true },
+  { code: "en", label: "English", country: "US", rtl: false },
+  { code: "es", label: "Español", country: "ES", rtl: false },
+  { code: "ar", label: "العربية", country: "EG", rtl: true },
 ];
 
 var DEFAULT_LOCALE = "en";
@@ -179,11 +184,38 @@ function normalizeLocale(value) {
   return isLocale(base) ? base : null;
 }
 
-function localeLabel(code) {
+function localeEntry(code) {
   for (var i = 0; i < LOCALES.length; i++) {
-    if (LOCALES[i].code === code) return LOCALES[i].label;
+    if (LOCALES[i].code === code) return LOCALES[i];
   }
-  return code;
+  return null;
+}
+
+function localeLabel(code) {
+  var entry = localeEntry(code);
+  return entry ? entry.label : code;
+}
+
+/**
+ * Flag emoji for the locale's country, built from the two regional-indicator
+ * symbols (`US` -> 🇺🇸). CardService dropdown items are plain text, so an
+ * emoji is the only way to show a flag there; Gmail renders it as an image on
+ * web, Android and iOS. Windows has no flag glyphs and shows the two letters
+ * instead, which still reads fine. Empty when the entry has no country.
+ */
+function localeFlag(code) {
+  var entry = localeEntry(code);
+  var country = entry && entry.country;
+  if (!country || !/^[A-Za-z]{2}$/.test(country)) return "";
+  var upper = country.toUpperCase();
+  var base = 0x1f1e6 - 65; // regional indicator A minus "A"
+  return String.fromCodePoint(base + upper.charCodeAt(0), base + upper.charCodeAt(1));
+}
+
+/** What a dropdown row shows: flag then native name, e.g. "🇪🇸 Español". */
+function localeOptionLabel(code) {
+  var flag = localeFlag(code);
+  return flag ? flag + " " + localeLabel(code) : localeLabel(code);
 }
 
 function localeDirection(code) {
@@ -426,7 +458,7 @@ function buildLanguageSelector(ctx) {
     .setTitle(t("common.languageSelectLabel"))
     .setOnChangeAction(CardService.newAction().setFunctionName("onLanguageChange"));
   ctx.options.forEach(function (code) {
-    dropdown.addItem(localeLabel(code), code, code === ctx.locale);
+    dropdown.addItem(localeOptionLabel(code), code, code === ctx.locale);
   });
   return dropdown;
 }
