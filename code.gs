@@ -363,6 +363,13 @@ async function buildHomeCard(e) {
     .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
 
   var builder = CardService.newCardBuilder();
+
+  // Language dropdown first, at the top of the card.
+  const languageSelector = buildLanguageSelector(ctx);
+  if (languageSelector) {
+    builder.addSection(CardService.newCardSection().addWidget(languageSelector));
+  }
+
   builder.addSection(
     CardService.newCardSection()
       .setCollapsible(false)
@@ -373,11 +380,6 @@ async function buildHomeCard(e) {
 
   if (e) {
     builder.addSection(CardService.newCardSection().addWidget(reportButton));
-  }
-
-  const languageSelector = buildLanguageSelector(ctx);
-  if (languageSelector) {
-    builder.addSection(CardService.newCardSection().addWidget(languageSelector));
   }
 
   builder.setFixedFooter(onboardingFooter());
