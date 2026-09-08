@@ -216,3 +216,60 @@ function setPreferredLanguage(identity, lang) {
     return false;
   }
 }
+
+/**
+ * Run this from the Apps Script editor (select it, press Run, open the
+ * Execution log) to see exactly how the language routes answer for the
+ * signed-in account: configuration, resolved base URL, then the HTTP status
+ * and body of each call. Safe to run: the only write is a PATCH that sets
+ * the preference back to whatever it already was (or "en").
+ */
+function debugLanguageApi() {
+  var email = Session.getActiveUser().getEmail();
+  var domain = accountDomainFromEmail(email);
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty("UNIFICATION_SERVICE_KEY");
+  console.log("config", {
+    email: email,
+    domain: domain,
+    UNIFICATION_ENV: props.getProperty("UNIFICATION_ENV") || "(unset -> prod)",
+    UNIFICATION_SERVICE_KEY: key ? "set (" + key.length + " chars)" : "MISSING",
+  });
+
+  var reg = "us-east-1";
+  try {
+    var res = UrlFetchApp.fetch(
+      "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=" + domain,
+      { muteHttpExceptions: true }
+    );
+    console.log("userregion", { status: res.getResponseCode(), body: res.getContentText() });
+    reg = JSON.parse(res.getContentText()).aws_region || reg;
+  } catch (err) {
+    console.log("userregion failed", err.message);
+  }
+  var base = unificationBase(reg);
+  console.log("base URL", { region: reg, base: base });
+
+  function call(label, method, url) {
+    try {
+      var r = UrlFetchApp.fetch(url, {
+        method: method,
+        headers: serviceHeaders(label),
+        muteHttpExceptions: true,
+      });
+      console.log(label, { method: method, url: url, status: r.getResponseCode(), body: r.getContentText() });
+      return r;
+    } catch (err) {
+      // A whitelist miss surfaces here, as an exception rather than a status.
+      console.log(label + " THREW", { method: method, url: url, error: err.message });
+      return null;
+    }
+  }
+
+  var identity = "domain=" + encodeURIComponent(domain) + "&email=" + encodeURIComponent(email);
+  call("supported-languages", "get", base + SUPPORTED_LANGUAGES_PATH + "?domain=" + encodeURIComponent(domain));
+  var pref = call("preferred-language GET", "get", base + PREFERRED_LANGUAGE_PATH + "?" + identity);
+  var current = "en";
+  try { current = JSON.parse(pref.getContentText()).data.preferredLanguage || "en"; } catch (err) {}
+  call("preferred-language PATCH", "patch", base + PREFERRED_LANGUAGE_PATH + "?" + identity + "&lang=" + encodeURIComponent(current));
+}
