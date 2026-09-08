@@ -69,9 +69,11 @@ and the card stays in English; the backend is the only source of the offer.
 account, then the home card is redrawn. A failed PATCH still switches the UI
 and shows a "could not save" toast.
 
-**Caching** (CacheService, per user): region 6 h, supported list 6 h,
-stored preference 1 h. A change made in the portal reaches the add-on within
-an hour; a change made in the add-on is immediate.
+**No caching**: every time the add-on renders a card it calls the region
+lookup, supported-languages and preferred-language routes, so a change made
+by an admin or in the portal shows up the next time the add-on is opened.
+The user's last explicit choice in the add-on is kept as a user property,
+used only when the account has no stored preference.
 
 ### Translating the card copy for a language
 

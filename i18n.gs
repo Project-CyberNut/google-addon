@@ -48,17 +48,14 @@ function shippedLocales() {
   return Object.keys(MESSAGES);
 }
 
-/** Cache lifetimes (seconds). CacheService caps entries at 6 hours. */
-var LOCALE_CACHE_TTL = 60 * 60;          // stored preference, re-read hourly
-var SUPPORTED_CACHE_TTL = 6 * 60 * 60;   // account's supported list
-var REGION_CACHE_TTL = 6 * 60 * 60;      // domain -> AWS region
-
-var CACHE_KEY_PREFERRED = "cybernut_lang_preferred";
-var CACHE_KEY_SUPPORTED = "cybernut_lang_supported:";
-var CACHE_KEY_REGION = "cybernut_lang_region:";
+/**
+ * No caching: every card render asks the backend for the region, the
+ * account's supported languages and the stored preference, so a change made
+ * by an admin or in the portal shows up the next time the add-on is opened.
+ * The one thing kept locally is the user's last explicit choice here, as a
+ * fallback for when the account has nothing stored.
+ */
 var PROPERTY_KEY_LOCALE = "cybernut_locale";
-/** Cached stand-in for "the account has nothing stored" (cache cannot hold null). */
-var NONE_SENTINEL = "__none__";
 
 var MESSAGES = {
   en: {
@@ -401,59 +398,19 @@ function rememberedLocale() {
   }
 }
 
-/**
- * Record a choice locally: the durable user property, plus the preference
- * cache so the next card render in this hour sees it without a round trip.
- */
+/** Record a choice locally, as the fallback for an account with nothing stored. */
 function rememberLocale(locale) {
   try {
     PropertiesService.getUserProperties().setProperty(PROPERTY_KEY_LOCALE, locale);
   } catch (err) {
     console.log("rememberLocale|user property write failed|", err.message);
   }
-  try {
-    CacheService.getUserCache().put(CACHE_KEY_PREFERRED, locale, LOCALE_CACHE_TTL);
-  } catch (err) {
-    console.log("rememberLocale|cache write failed|", err.message);
-  }
 }
 
-/** Domain -> AWS region, cached; wraps the existing region() lookup. */
-async function resolveRegionCached(domain) {
-  var cache = CacheService.getUserCache();
-  var key = CACHE_KEY_REGION + domain;
-  var cached = cache.get(key);
-  if (cached) return cached;
+/** Domain -> AWS region, via the existing region() lookup. */
+async function resolveRegion(domain) {
   var result = await region(domain);
-  var reg = (result && result.aws_region) || "us-east-1";
-  cache.put(key, reg, REGION_CACHE_TTL);
-  return reg;
-}
-
-/** Account's supported list, cached per domain. `null` when unreadable. */
-function supportedLanguagesCached(domain, reg) {
-  var cache = CacheService.getUserCache();
-  var key = CACHE_KEY_SUPPORTED + domain;
-  var cached = cache.get(key);
-  if (cached) {
-    var parsed = parseJsonSafe(cached);
-    if (Array.isArray(parsed)) return parsed;
-  }
-  var supported = getSupportedLanguages(domain, reg);
-  // Only real answers are cached: an outage should be retried, not remembered.
-  if (supported !== null) cache.put(key, JSON.stringify(supported), SUPPORTED_CACHE_TTL);
-  return supported;
-}
-
-/** Stored preference for this user, cached. `null` when none or unreadable. */
-function preferredLanguageCached(identity) {
-  var cache = CacheService.getUserCache();
-  var cached = cache.get(CACHE_KEY_PREFERRED);
-  if (cached === NONE_SENTINEL) return null;
-  if (cached) return cached;
-  var preferred = getPreferredLanguage(identity);
-  cache.put(CACHE_KEY_PREFERRED, preferred || NONE_SENTINEL, LOCALE_CACHE_TTL);
-  return preferred;
+  return (result && result.aws_region) || "us-east-1";
 }
 
 /**
@@ -516,10 +473,10 @@ async function getLanguageContext(e) {
   var supported = null;
   var preferred = null;
   if (domain) {
-    var reg = await resolveRegionCached(domain);
+    var reg = await resolveRegion(domain);
     identity = { domain: domain, email: email, region: reg };
-    supported = supportedLanguagesCached(domain, reg);
-    preferred = preferredLanguageCached(identity);
+    supported = getSupportedLanguages(domain, reg);
+    preferred = getPreferredLanguage(identity);
   } else {
     console.warn("getLanguageContext|no account domain - language selector hidden");
   }
@@ -614,11 +571,6 @@ async function onLanguageChange(e) {
 
   var saved = false;
   if (ctx.identity) saved = setPreferredLanguage(ctx.identity, chosen);
-  if (!saved) {
-    // Keep the local choice authoritative until the account catches up, but
-    // don't cache "chosen" as the account's answer for a full hour.
-    try { CacheService.getUserCache().remove(CACHE_KEY_PREFERRED); } catch (err) {}
-  }
 
   var card = await buildHomeCard(e);
   return CardService.newActionResponseBuilder()
@@ -627,23 +579,4 @@ async function onLanguageChange(e) {
       saved ? t("language.updated") : t("language.savedLocallyOnly")
     ))
     .build();
-}
-
-/**
- * Run from the Apps Script editor to forget the cached region, supported list
- * and stored preference for the signed-in user (the cache is per user and
- * per script, so running it as yourself clears your own). Use it after an
- * admin changes the account's supported languages, so the next card render
- * asks the backend again instead of waiting out the cache.
- */
-function clearLanguageCache() {
-  var cache = CacheService.getUserCache();
-  var email = Session.getActiveUser().getEmail();
-  var domain = accountDomainFromEmail(email);
-  cache.remove(CACHE_KEY_PREFERRED);
-  if (domain) {
-    cache.remove(CACHE_KEY_SUPPORTED + domain);
-    cache.remove(CACHE_KEY_REGION + domain);
-  }
-  console.log("clearLanguageCache|done|", { email: email, domain: domain });
 }
