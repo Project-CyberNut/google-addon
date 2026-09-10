@@ -1,9 +1,9 @@
 var version = "v 2.5.0"
 
-/** Product name is a brand; only the surrounding copy is translated. */
+/** Product name is a brand; only the surrounding copy is translated. Env-specific (env.gs). */
 function headingWidget() {
   return CardService.newTextParagraph().setText(
-    `<b>Cybernut Reporting Tool</b>  ${version}`
+    `<b>${env().heading}</b>  ${version}`
   );
 }
 
@@ -15,7 +15,7 @@ async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
   console.log(`callErrorReportingApi|called| version: ${version}`);
   try {
-    const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
+    const url = `${env().telemetryHost}/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
     const payload = {
       id: Session.getActiveUser().getEmail(),
       body: String(error) + ` Add-On Version: ${version}`,
@@ -42,7 +42,7 @@ async function region(domainNameTo) {
   console.log('region|called!', { domainNameTo });
   try {
     const res = UrlFetchApp.fetch(
-      `https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=${domainNameTo}`,
+      `${env().userRegionHost}/userregion?domain=${domainNameTo}`,
       {
         method: "get",
         headers: { "Content-Type": "application/json" },
@@ -82,7 +82,7 @@ function foundReportUrl(e) {
   if (!msgId) return false;
   const message = GmailApp.getMessageById(msgId);
   const emailBody = message.getBody();
-  const encodedTarget = 'training.cybernut.com';
+  const encodedTarget = env().trainingHost;
   const found = emailBody.includes(encodedTarget);
   console.log('foundReportUrl|result|', { found });
   return found;
@@ -235,14 +235,10 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
 
 
 
-// Returns all API Gateway URL prefixes for a given AWS region
+// Returns all API Gateway URL prefixes for a given AWS region (values per environment in env.gs)
 function getRegionUrls(region) {
-  const mapping = {
-    "us-east-1":      { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" },
-    "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", adminUrl: "b4nzi83qm2", serviceUrl: "vahgicl5qh" },
-    "eu-central-1":   { verifyUrl: "telmnzu55i", adminUrl: "dej7cfclm9", serviceUrl: "p3shdnpenc" },
-  };
-  const urls = mapping[region] || { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" };
+  const mapping = env().regions;
+  const urls = mapping[region] || mapping["us-east-1"];
   console.log('getRegionUrls|', { region, urls });
   return urls;
 }
@@ -519,14 +515,14 @@ async function handleStep1(e) {
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
       if (campaignVersion === "v2" && isV2Campaign) {
-        var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
+        var redirectUrl = `https://${env().trainingHost}/report?messageid=${encodedMessageId}&region=${reg}`;
         console.log('handleStep1|campaignV2|redirecting to training|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
       } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
-        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        var redirectUrl = `https://${env().portalHost}/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
@@ -720,7 +716,7 @@ async function openLearnAddonLink() {
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://training.cybernut.com/onboarding?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo`
+          `https://${env().trainingHost}/onboarding?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo`
         )
       )
       .build();

@@ -14,39 +14,19 @@
  *   PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
  *         -> 200, or 400 when `lang` is not in the account's supported list
  *
- * Configuration lives in Script Properties (Apps Script editor -> Project
- * Settings -> Script Properties), never in source:
- *   UNIFICATION_SERVICE_KEY  required - the shared service key
- *   UNIFICATION_ENV          optional - "prod" (default) or "dev"
+ * The service key lives in the Script Property UNIFICATION_SERVICE_KEY
+ * (Apps Script editor -> Project Settings -> Script Properties), never in
+ * source. Base URLs per environment come from env.gs (ADDON_ENV).
  */
-
-var UNIFICATION_BASES = {
-  prod: {
-    "us-east-1": "https://prod-us-east-1.cybernut.ai/api/v1",
-    "ap-southeast-1": "https://prod-ap-southeast-1.cybernut.ai/api/v1",
-    "eu-central-1": "https://prod-eu-central-1.cybernut.ai/api/v1",
-  },
-  dev: {
-    "us-east-1": "https://dev-us-east-1.cybernut.ai/api/v1",
-    "ap-southeast-1": "https://dev-ap-southeast-1.cybernut.ai/api/v1",
-    "eu-central-1": "https://dev-eu-central-1.cybernut.ai/api/v1",
-  },
-};
 
 var SUPPORTED_LANGUAGES_PATH = "/public/accounts/supported-languages";
 var PREFERRED_LANGUAGE_PATH = "/public/users/preferred-language";
 
-/** Base URL of the unification platform for an AWS region. */
+/** Base URL of the unification platform for an AWS region, in the active environment. */
 function unificationBase(region) {
-  var env = "prod";
-  try {
-    env = PropertiesService.getScriptProperties().getProperty("UNIFICATION_ENV") || "prod";
-  } catch (err) {
-    console.log("unificationBase|script properties unreadable|", err.message);
-  }
-  var bases = UNIFICATION_BASES[env] || UNIFICATION_BASES.prod;
+  var bases = env().unification;
   var base = bases[region] || bases["us-east-1"];
-  console.log("unificationBase|", { env: env, region: region, base: base });
+  console.log("unificationBase|", { region: region, base: base });
   return base;
 }
 
@@ -232,14 +212,14 @@ function debugLanguageApi() {
   console.log("config", {
     email: email,
     domain: domain,
-    UNIFICATION_ENV: props.getProperty("UNIFICATION_ENV") || "(unset -> prod)",
+    ADDON_ENV: currentEnvName(),
     UNIFICATION_SERVICE_KEY: key ? "set (" + key.length + " chars)" : "MISSING",
   });
 
   var reg = "us-east-1";
   try {
     var res = UrlFetchApp.fetch(
-      "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=" + domain,
+      env().userRegionHost + "/userregion?domain=" + domain,
       { muteHttpExceptions: true }
     );
     console.log("userregion", { status: res.getResponseCode(), body: res.getContentText() });

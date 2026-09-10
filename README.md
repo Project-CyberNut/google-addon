@@ -9,7 +9,8 @@ user's CyberNut account.
 
 | File | Purpose |
 | --- | --- |
-| `Appscript.json` | Add-on manifest: scopes, triggers, `urlFetchWhitelist`. Must be named `appsscript.json` inside the Apps Script project. |
+| `Appscript.json` | Add-on manifest: scopes, triggers, `urlFetchWhitelist`. Must be named `appsscript.json` inside the Apps Script project. The whitelist carries both environments' hosts so one manifest serves both projects. |
+| `env.gs` | Prod and dev configuration: every URL, API Gateway id and label that differs between environments, selected by `ADDON_ENV`. |
 | `code.gs` | Report flow: home card, step 1 (what did you click), step 2 (forward to IT). |
 | `i18n.gs` | Locale registry, message catalogues, locale resolution, language dropdown. |
 | `languageApi.gs` | Unification-platform language routes (supported / preferred language). |
@@ -26,14 +27,36 @@ user's CyberNut account.
 
    | Property | Required | Value |
    | --- | --- | --- |
-   | `UNIFICATION_SERVICE_KEY` | yes | Shared service key for the `/public/*` language routes (same key the training portal uses as `UNIFICATION_SERVICE_KEY`). |
-   | `UNIFICATION_ENV` | no | `prod` (default) or `dev`. Selects `https://{env}-{region}.cybernut.ai/api/v1`. |
+   | `UNIFICATION_SERVICE_KEY` | yes | Shared service key for the `/public/*` language routes (same key the training portal uses as `UNIFICATION_SERVICE_KEY`). Dev and prod have different keys. |
+   | `ADDON_ENV` | no | `prod` (default) or `dev`. Selects every environment-specific value: API Gateway ids, telemetry host, training and portal hosts, unification base URLs and the card heading. See `env.gs`. `UNIFICATION_ENV` is accepted as a legacy alias. |
 
    Without the key the language routes answer 401; the add-on then falls back
    to offering every shipped language and remembering the choice only on this
    Google account.
 5. **Deploy as a test add-on**: create a Head deployment, install it under
    Gmail → Settings → Add-ons using the deployment ID, reload Gmail.
+
+## Environments
+
+Prod and dev run the same code. Everything that differs lives in `env.gs`
+under `ENVIRONMENTS.prod` and `ENVIRONMENTS.dev`, and the Script Property
+`ADDON_ENV` picks one. Nothing in `code.gs`, `i18n.gs` or `languageApi.gs`
+names a host directly.
+
+Per environment: card heading, telemetry host (route is
+`microsoftaddinactivitynew` in both), user-region host, per-region API Gateway
+ids (verify / admin / service), training portal host (used for the v2 report
+redirect, the onboarding link and the body-link check), legacy report portal
+host, and the unification platform base URLs.
+
+The manifest's `urlFetchWhitelist` is the union of both environments'
+prefixes, generated from `environmentFetchPrefixes()` in `env.gs`, so the same
+manifest deploys to both Apps Script projects. The one manifest field the
+platform cannot switch at runtime is `addOns.common.name`: the dev project
+sets it to "Cybernut Dev" by hand; everything else is identical.
+
+Run `debugEnvironment()` from the editor to log the active environment and
+every URL it will fetch.
 
 ## Localization
 
