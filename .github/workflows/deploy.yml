@@ -1,0 +1,63 @@
+name: Apps Script
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: apps-script-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
+      - run: npm run build:dev && npm run build:prod
+
+  push:
+    name: Push to ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    env:
+      TARGET: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install -g @google/clasp@3
+
+      - name: Build
+        env:
+          SCRIPT_ID_DEV: ${{ vars.SCRIPT_ID_DEV }}
+          SCRIPT_ID_PROD: ${{ vars.SCRIPT_ID_PROD }}
+        run: |
+          npm run build -- "$TARGET"
+          test -f "dist/$TARGET/.clasp.json" || { echo "SCRIPT_ID_${TARGET^^} repository variable is not set"; exit 1; }
+
+      - name: Authenticate clasp
+        run: |
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+      - name: Push
+        working-directory: dist/${{ env.TARGET }}
+        run: clasp push --force
+
+      # Prod only: move the published deployment to the code just pushed.
+      # Skipped when no deployment id is configured (head deployment updates by itself).
+      - name: Update deployment
+        if: env.TARGET == 'prod' && vars.DEPLOYMENT_ID_PROD != ''
+        working-directory: dist/${{ env.TARGET }}
+        run: clasp deploy --deploymentId "${{ vars.DEPLOYMENT_ID_PROD }}" --description "${{ github.sha }}"

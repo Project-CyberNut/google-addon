@@ -6,16 +6,15 @@
  * lives here, keyed by environment, and the rest of the code reads it via
  * `env()`. One code base, one manifest, deployed to both projects.
  *
- * Which environment runs is decided by the Script Property `ADDON_ENV`
- * (Apps Script editor -> Project Settings -> Script Properties): "prod" or
- * "dev". Unset means prod. `UNIFICATION_ENV` is honoured as a legacy alias
- * for deployments that set it before this file existed.
+ * Which environment runs: a project built by scripts/build.js carries
+ * BUILD_ENV in build.gs, and that decides. A project pasted in by hand uses
+ * the Script Property `ADDON_ENV` (Apps Script editor -> Project Settings ->
+ * Script Properties): "prod" or "dev"; unset means prod. `UNIFICATION_ENV`
+ * is honoured as a legacy alias.
  *
- * The one value the platform will not let us switch at runtime is the add-on
- * name in Appscript.json (`addOns.common.name`): the manifest is static. The
- * dev Apps Script project keeps its own manifest with "Cybernut Dev" there;
- * everything else in the manifest, including the whitelist, is the same for
- * both because the whitelist carries both environments' hosts.
+ * The add-on name in the manifest (`addOns.common.name`) cannot be read from
+ * here - the manifest is static - so scripts/build.js writes it per target
+ * along with a urlFetchWhitelist generated from environmentFetchPrefixes().
  *
  * API Gateway ids per environment come from the branches that used to hold
  * them: prod from main, dev from the dev branch's code (its manifest
@@ -73,8 +72,14 @@ var DEFAULT_ENV = "prod";
 /** Memoised per execution. */
 var currentEnvMemo = null;
 
-/** "prod" or "dev", from Script Properties; unknown or unset -> prod. */
+/**
+ * "prod" or "dev". A built project (scripts/build.js) carries BUILD_ENV in
+ * build.gs and that wins, so a deployment can never run against the wrong
+ * backend because of a property. A project pasted in by hand has no
+ * build.gs and falls back to the Script Property; unknown or unset -> prod.
+ */
 function currentEnvName() {
+  if (typeof BUILD_ENV === "string" && ENVIRONMENTS[BUILD_ENV]) return BUILD_ENV;
   var name = null;
   try {
     var props = PropertiesService.getScriptProperties();
@@ -128,6 +133,10 @@ function environmentFetchPrefixes(name) {
 /** Run from the Apps Script editor: logs the active environment and every URL it will fetch. */
 function debugEnvironment() {
   var name = currentEnvName();
-  console.log("environment", name, ENVIRONMENTS[name]);
+  console.log("environment", name, {
+    decidedBy: typeof BUILD_ENV === "string" ? "build.gs (BUILD_ENV)" : "script property / default",
+    build: typeof BUILD_VERSION === "string" ? BUILD_VERSION + " " + BUILD_COMMIT + " " + BUILD_TIME : "not a built project",
+  });
+  console.log("config", ENVIRONMENTS[name]);
   console.log("fetch prefixes", environmentFetchPrefixes(name));
 }

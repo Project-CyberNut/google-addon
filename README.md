@@ -9,13 +9,62 @@ user's CyberNut account.
 
 | File | Purpose |
 | --- | --- |
-| `Appscript.json` | Add-on manifest: scopes, triggers, `urlFetchWhitelist`. Must be named `appsscript.json` inside the Apps Script project. The whitelist carries both environments' hosts so one manifest serves both projects. |
+| `Appscript.json` | Manifest template: scopes, triggers, whitelist. The build writes it out as `appsscript.json` per environment with the name and whitelist filled in. If pasting by hand, rename it to `appsscript.json`. |
+| `scripts/build.js`, `scripts/check.js` | Build one environment into `dist/<env>/`; pre-push checks. |
+| `.github/workflows/deploy.yml` | CI: checks on pull requests; build and `clasp push` on merges to `dev` and `main`. |
 | `env.gs` | Prod and dev configuration: every URL, API Gateway id and label that differs between environments, selected by `ADDON_ENV`. |
 | `code.gs` | Report flow: home card, step 1 (what did you click), step 2 (forward to IT). |
 | `i18n.gs` | Locale registry, message catalogues, locale resolution, language dropdown. |
 | `languageApi.gs` | Unification-platform language routes (supported / preferred language). |
 
-## Setup
+## Build and deploy
+
+One code base, two Apps Script projects (dev and prod). `scripts/build.js`
+assembles a deployable folder per environment and `clasp` pushes it; GitHub
+Actions does both on every merge.
+
+```bash
+npm test              # syntax, catalogue parity, no hard-coded hosts, whitelist coverage
+npm run build:dev     # -> dist/dev   (build.gs with BUILD_ENV="dev",  manifest named "Cybernut Dev")
+npm run build:prod    # -> dist/prod  (build.gs with BUILD_ENV="prod", manifest named "CyberNut Reporting Tool")
+npm run push:dev      # build + clasp push to the dev project (needs clasp login + script id)
+npm run push:prod
+```
+
+The build copies every `.gs` file, writes `build.gs` (environment, version,
+commit, time), and generates `appsscript.json` from `Appscript.json` with the
+add-on name set and `urlFetchWhitelist` regenerated from `env.gs`. A built
+project decides its environment from `build.gs`, so no `ADDON_ENV` property
+is needed in either project.
+
+**Branches -> environments**: merging to `dev` pushes to the dev project;
+merging to `main` pushes to the prod project. Pull requests run the checks and
+both builds without pushing. See `.github/workflows/deploy.yml`.
+
+**One-time setup**
+
+1. Enable the Apps Script API for the deploying Google account at
+   script.google.com/home/usersettings.
+2. Locally: `clasp login`, then copy `~/.clasprc.json` into the GitHub secret
+   `CLASPRC_JSON` (Settings -> Secrets and variables -> Actions). Use an
+   account with edit access to both Apps Script projects, ideally a service
+   account-like shared account rather than a personal one.
+3. Repository variables: `SCRIPT_ID_DEV` and `SCRIPT_ID_PROD` (the id in each
+   project's URL, `script.google.com/.../projects/<id>/edit`). Optional:
+   `DEPLOYMENT_ID_PROD` so a push to main also moves the published deployment
+   to the new code; without it, pushes update the head deployment only.
+4. Create two GitHub environments named `dev` and `prod` (Settings ->
+   Environments). Add required reviewers to `prod` if you want a manual
+   approval before production pushes.
+5. In each Apps Script project, set the Script Property
+   `UNIFICATION_SERVICE_KEY` once (dev and prod keys differ). It is the only
+   thing the pipeline cannot set.
+
+For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
+(git-ignored) and fill in the script ids, or export `SCRIPT_ID_DEV` /
+`SCRIPT_ID_PROD`.
+
+## Setup (manual, without the pipeline)
 
 1. **Apps Script project.** Create one at script.google.com (or `clasp create`)
    and add the four files above. Rename the manifest to `appsscript.json` and
@@ -49,11 +98,10 @@ ids (verify / admin / service), training portal host (used for the v2 report
 redirect, the onboarding link and the body-link check), legacy report portal
 host, and the unification platform base URLs.
 
-The manifest's `urlFetchWhitelist` is the union of both environments'
-prefixes, generated from `environmentFetchPrefixes()` in `env.gs`, so the same
-manifest deploys to both Apps Script projects. The one manifest field the
-platform cannot switch at runtime is `addOns.common.name`: the dev project
-sets it to "Cybernut Dev" by hand; everything else is identical.
+The build generates each environment's `urlFetchWhitelist` from
+`environmentFetchPrefixes()` in `env.gs`, so code and manifest cannot drift,
+and sets `addOns.common.name` per environment ("CyberNut Reporting Tool" /
+"Cybernut Dev"). The repo's `Appscript.json` is the template.
 
 Run `debugEnvironment()` from the editor to log the active environment and
 every URL it will fetch.
