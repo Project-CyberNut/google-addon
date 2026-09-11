@@ -42,7 +42,7 @@ jobs:
           SCRIPT_ID_PROD: ${{ vars.SCRIPT_ID_PROD }}
         run: |
           npm run build -- "$TARGET"
-          test -f "dist/$TARGET/.clasp.json" || { echo "SCRIPT_ID_${TARGET^^} repository variable is not set"; exit 1; }
+          test -f "dist/$TARGET/.clasp.json" || { echo "no script id for $TARGET: fill clasp.targets.json or set the SCRIPT_ID_${TARGET^^} variable"; exit 1; }
 
       - name: Authenticate clasp
         run: |

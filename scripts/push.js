@@ -26,10 +26,8 @@ const problems = [];
 
 if (!fs.existsSync(path.join(dist, ".clasp.json"))) {
   problems.push(
-    `No script id for ${target}. Either:\n` +
-      `    - copy clasp.targets.example.json to clasp.targets.json and paste the id\n` +
-      `      from the ${target} project's URL (script.google.com/.../projects/<id>/edit), or\n` +
-      `    - export SCRIPT_ID_${target.toUpperCase()}=<id>`
+    `No script id for ${target}. Paste it into clasp.targets.json (from the ${target}\n` +
+      `    project's URL, script.google.com/.../projects/<id>/edit) or export SCRIPT_ID_${target.toUpperCase()}=<id>`
   );
 }
 if (!fs.existsSync(path.join(os.homedir(), ".clasprc.json"))) {

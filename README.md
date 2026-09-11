@@ -54,8 +54,8 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
    `CLASPRC_JSON` (Settings -> Secrets and variables -> Actions). Use an
    account with edit access to both Apps Script projects, ideally a service
    account-like shared account rather than a personal one.
-3. Repository variables: `SCRIPT_ID_DEV` and `SCRIPT_ID_PROD` (the id in each
-   project's URL, `script.google.com/.../projects/<id>/edit`). Optional:
+3. Put both script ids in `clasp.targets.json` (the id in each project's URL,
+   `script.google.com/.../projects/<id>/edit`). Optional repository variable
    `DEPLOYMENT_ID_PROD` so a push to main also moves the published deployment
    to the new code; without it, pushes update the head deployment only.
 4. Create two GitHub environments named `dev` and `prod` (Settings ->
@@ -65,9 +65,9 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
    `UNIFICATION_SERVICE_KEY` once (dev and prod keys differ). It is the only
    thing the pipeline cannot set.
 
-For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
-(git-ignored) and fill in the script ids, or export `SCRIPT_ID_DEV` /
-`SCRIPT_ID_PROD`.
+Script ids live in `clasp.targets.json` (committed; they are not secrets, the
+projects are protected by Google sign-in). `SCRIPT_ID_DEV` / `SCRIPT_ID_PROD`
+environment variables override it when set.
 
 ## Setup (manual, without the pipeline)
 
