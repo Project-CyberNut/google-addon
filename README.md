@@ -31,11 +31,16 @@ npm run push:dev      # build + clasp push to the dev project (needs clasp login
 npm run push:prod
 ```
 
-The build copies every `.gs` file, writes `build.gs` (environment, version,
-commit, time), and generates `appsscript.json` from `Appscript.json` with the
-add-on name set and `urlFetchWhitelist` regenerated from `env.gs`. A built
-project decides its environment from `build.gs`, so no `ADDON_ENV` property
-is needed in either project.
+The build merges every `.gs` file into one `Code.gs` (build constants first,
+then `env.gs`, then the rest; Apps Script files share one global scope, so
+this is behaviour-identical and easier to paste and review), and generates
+`appsscript.json` from `Appscript.json` with the add-on name set and
+`urlFetchWhitelist` regenerated from `env.gs`. A built project decides its
+environment from the baked-in `BUILD_ENV`, so no `ADDON_ENV` property is
+needed in either project. Pass `--separate` to keep one file per source.
+
+**If you paste by hand**: build, then paste `dist/<env>/Code.gs` and
+`dist/<env>/appsscript.json` into the Apps Script project. Two files, done.
 
 **Branches -> environments**: merging to `dev` pushes to the dev project;
 merging to `main` pushes to the prod project. Pull requests run the checks and
