@@ -4,6 +4,14 @@ on:
   pull_request:
   push:
     branches: [dev, main]
+  # Manual run from any branch, e.g. to test the pipeline before merging.
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to push to
+        type: choice
+        options: [dev, prod]
+        default: dev
 
 concurrency:
   group: apps-script-${{ github.ref }}
@@ -22,13 +30,13 @@ jobs:
       - run: npm run build:dev && npm run build:prod
 
   push:
-    name: Push to ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    name: Push to ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || 'dev') }}
     needs: check
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || 'dev') }}
     env:
-      TARGET: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || 'dev') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
