@@ -1,26 +1,23 @@
 /**
  * Language preference APIs on the CyberNut unification platform.
  *
- * Mirrors user-portal-micro-learning-v2/src/lib/languageApi.ts so the add-on
- * and the training portal read and write the same stored preference. All
- * three routes are public (no user JWT): they resolve the tenant from the
- * account `domain` (derived from the user's email) and are authenticated by
- * a shared service key sent as `x-service-key`.
+ * Mirrors the training portal so the add-on and the portal read and write
+ * the same stored preference. Both routes are public: no user JWT and no
+ * service key. They resolve the tenant from the account `domain` (derived
+ * from the user's email).
  *
- *   GET   /public/accounts/supported-languages?domain=acme.org
- *         -> { success, data: { supportedLanguages: ["en", "es"] } }
  *   GET   /public/users/preferred-language?domain=acme.org&email=jane@acme.org
- *         -> { success, data: { preferredLanguage: "es" | null } }
+ *         -> { success, data: { preferredLanguage: "es" | null,
+ *                               supportedLanguages: ["en", "es"] } }
  *   PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
  *         -> 200, or 400 when `lang` is not in the account's supported list
  *
- * The service key lives in the Script Property UNIFICATION_SERVICE_KEY
- * (Apps Script editor -> Project Settings -> Script Properties), never in
- * source. Base URLs per environment come from env.gs (ADDON_ENV).
+ * Base URLs per environment come from env.gs.
  */
 
-var SUPPORTED_LANGUAGES_PATH = "/public/accounts/supported-languages";
 var PREFERRED_LANGUAGE_PATH = "/public/users/preferred-language";
+
+var JSON_HEADERS = { "Content-Type": "application/json" };
 
 /** Base URL of the unification platform for an AWS region, in the active environment. */
 function unificationBase(region) {
@@ -28,28 +25,6 @@ function unificationBase(region) {
   var base = bases[region] || bases["us-east-1"];
   console.log("unificationBase|", { region: region, base: base });
   return base;
-}
-
-/**
- * Headers for every language route. The key is read from Script Properties so
- * it never lands in the repo. Missing key -> the request is sent without it
- * and the service answers 401, which the callers treat as "unavailable".
- */
-function serviceHeaders(callName) {
-  var key = null;
-  try {
-    key = PropertiesService.getScriptProperties().getProperty("UNIFICATION_SERVICE_KEY");
-  } catch (err) {
-    console.log("serviceHeaders|script properties unreadable|", err.message);
-  }
-  if (!key) {
-    console.warn(
-      "serviceHeaders|UNIFICATION_SERVICE_KEY is not set - " + callName +
-      " will be rejected. Add it under Project Settings -> Script Properties."
-    );
-    return { "Content-Type": "application/json" };
-  }
-  return { "Content-Type": "application/json", "x-service-key": key };
 }
 
 /** Account domain for the tenant lookup, e.g. `jane@acme.org` -> `acme.org`. */
@@ -86,83 +61,52 @@ function parseJsonSafe(text) {
 }
 
 /**
- * Language codes the account's admins have switched on.
- * Returns `null` when the list could not be read (caller hides the selector);
- * an empty array is a real answer (account configured nothing).
+ * One call gives everything the selector needs:
+ *   { preferredLanguage: string | null, supportedLanguages: string[] }
+ * `preferredLanguage` null is the normal first-visit answer. Returns null
+ * when the route is unavailable or the response has no supportedLanguages
+ * array; the caller then hides the selector.
  */
-function getSupportedLanguages(domain, region) {
-  var url = unificationBase(region) + SUPPORTED_LANGUAGES_PATH +
-    "?domain=" + encodeURIComponent(domain);
-  console.log("getSupportedLanguages|called|", { url: url });
-  try {
-    var res = UrlFetchApp.fetch(url, {
-      method: "get",
-      headers: serviceHeaders("supported-languages"),
-      muteHttpExceptions: true,
-    });
-    var code = res.getResponseCode();
-    if (code !== 200) {
-      console.warn("getSupportedLanguages|http failure|", { code: code, body: res.getContentText() });
-      return null;
-    }
-    var body = parseJsonSafe(res.getContentText());
-    var languages = body && body.data && body.data.supportedLanguages;
-    if (!Array.isArray(languages)) {
-      console.warn("getSupportedLanguages|no supportedLanguages array in response");
-      return null;
-    }
-    var codes = languages.filter(function (c) { return typeof c === "string"; });
-    console.log("getSupportedLanguages|result|", { codes: codes });
-    return codes;
-  } catch (err) {
-    console.error("getSupportedLanguages|failed|", err.message);
-    callErrorReportingApi("getSupportedLanguages failed: " + err.message, " ");
-    return null;
-  }
-}
-
-/**
- * The language this user chose before, or `null` when none is stored (the
- * normal first-visit answer) or the route is unavailable.
- */
-function getPreferredLanguage(identity) {
+function getLanguagePreference(identity) {
   var query = identityQuery(identity);
   if (!query) {
-    console.log("getPreferredLanguage|skipped|no email or memberId");
+    console.log("getLanguagePreference|skipped|no email or memberId");
     return null;
   }
   var url = unificationBase(identity.region) + PREFERRED_LANGUAGE_PATH + "?" + query;
-  console.log("getPreferredLanguage|called|", { url: url });
+  console.log("getLanguagePreference|called|", { url: url });
   try {
-    var res = UrlFetchApp.fetch(url, {
-      method: "get",
-      headers: serviceHeaders("preferred-language"),
-      muteHttpExceptions: true,
-    });
+    var res = UrlFetchApp.fetch(url, { method: "get", headers: JSON_HEADERS, muteHttpExceptions: true });
     var code = res.getResponseCode();
     if (code !== 200) {
-      console.warn("getPreferredLanguage|http failure|", { code: code, body: res.getContentText() });
+      console.warn("getLanguagePreference|http failure|", { code: code, body: res.getContentText() });
       return null;
     }
     var body = parseJsonSafe(res.getContentText());
-    var language = body && body.data && body.data.preferredLanguage;
-    if (typeof language !== "string" || !language) {
-      console.log("getPreferredLanguage|result|none stored");
+    var data = body && body.data;
+    var supported = data && data.supportedLanguages;
+    if (!Array.isArray(supported)) {
+      console.warn("getLanguagePreference|no supportedLanguages array in response");
       return null;
     }
-    console.log("getPreferredLanguage|result|", { language: language });
-    return language;
+    var preferred = data.preferredLanguage;
+    var result = {
+      preferredLanguage: typeof preferred === "string" && preferred ? preferred : null,
+      supportedLanguages: supported.filter(function (c) { return typeof c === "string"; }),
+    };
+    console.log("getLanguagePreference|result|", result);
+    return result;
   } catch (err) {
-    console.error("getPreferredLanguage|failed|", err.message);
-    callErrorReportingApi("getPreferredLanguage failed: " + err.message, " ");
+    console.error("getLanguagePreference|failed|", err.message);
+    callErrorReportingApi("getLanguagePreference failed: " + err.message, " ");
     return null;
   }
 }
 
 /**
  * Persists the user's choice on the account. `false` when it did not land
- * (network, 401 for a missing key, or 400 for a language the account does
- * not allow); the caller still switches the UI, only the memory is lost.
+ * (network, or 400 for a language the account does not allow); the caller
+ * still switches the UI, only the memory is lost.
  */
 function setPreferredLanguage(identity, lang) {
   var query = identityQuery(identity);
@@ -174,11 +118,7 @@ function setPreferredLanguage(identity, lang) {
     "&lang=" + encodeURIComponent(lang);
   console.log("setPreferredLanguage|called|", { url: url });
   try {
-    var res = UrlFetchApp.fetch(url, {
-      method: "patch",
-      headers: serviceHeaders("set-preferred-language"),
-      muteHttpExceptions: true,
-    });
+    var res = UrlFetchApp.fetch(url, { method: "patch", headers: JSON_HEADERS, muteHttpExceptions: true });
     var code = res.getResponseCode();
     if (code !== 200) {
       console.warn("setPreferredLanguage|http failure|", { code: code, body: res.getContentText() });
@@ -198,30 +138,20 @@ function setPreferredLanguage(identity, lang) {
 }
 
 /**
- * Run this from the Apps Script editor (select it, press Run, open the
- * Execution log) to see exactly how the language routes answer for the
- * signed-in account: configuration, resolved base URL, then the HTTP status
- * and body of each call. Safe to run: the only write is a PATCH that sets
- * the preference back to whatever it already was (or "en").
+ * Run from the Apps Script editor (select it, Run, open the Execution log)
+ * to see how the language routes answer for the signed-in account: the
+ * environment, the resolved base URL, then status and body of each call.
+ * Safe: the only write re-saves the preference that is already stored
+ * (or "en").
  */
 function debugLanguageApi() {
   var email = Session.getActiveUser().getEmail();
   var domain = accountDomainFromEmail(email);
-  var props = PropertiesService.getScriptProperties();
-  var key = props.getProperty("UNIFICATION_SERVICE_KEY");
-  console.log("config", {
-    email: email,
-    domain: domain,
-    ADDON_ENV: currentEnvName(),
-    UNIFICATION_SERVICE_KEY: key ? "set (" + key.length + " chars)" : "MISSING",
-  });
+  console.log("config", { email: email, domain: domain, environment: currentEnvName() });
 
   var reg = "us-east-1";
   try {
-    var res = UrlFetchApp.fetch(
-      env().userRegionHost + "/userregion?domain=" + domain,
-      { muteHttpExceptions: true }
-    );
+    var res = UrlFetchApp.fetch(env().userRegionHost + "/userregion?domain=" + domain, { muteHttpExceptions: true });
     console.log("userregion", { status: res.getResponseCode(), body: res.getContentText() });
     reg = JSON.parse(res.getContentText()).aws_region || reg;
   } catch (err) {
@@ -232,11 +162,7 @@ function debugLanguageApi() {
 
   function call(label, method, url) {
     try {
-      var r = UrlFetchApp.fetch(url, {
-        method: method,
-        headers: serviceHeaders(label),
-        muteHttpExceptions: true,
-      });
+      var r = UrlFetchApp.fetch(url, { method: method, headers: JSON_HEADERS, muteHttpExceptions: true });
       console.log(label, { method: method, url: url, status: r.getResponseCode(), body: r.getContentText() });
       return r;
     } catch (err) {
@@ -247,7 +173,6 @@ function debugLanguageApi() {
   }
 
   var identity = "domain=" + encodeURIComponent(domain) + "&email=" + encodeURIComponent(email);
-  call("supported-languages", "get", base + SUPPORTED_LANGUAGES_PATH + "?domain=" + encodeURIComponent(domain));
   var pref = call("preferred-language GET", "get", base + PREFERRED_LANGUAGE_PATH + "?" + identity);
   var current = "en";
   try { current = JSON.parse(pref.getContentText()).data.preferredLanguage || "en"; } catch (err) {}

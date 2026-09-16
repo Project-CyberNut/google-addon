@@ -61,9 +61,8 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
 4. Create two GitHub environments named `dev` and `prod` (Settings ->
    Environments). Add required reviewers to `prod` if you want a manual
    approval before production pushes.
-5. In each Apps Script project, set the Script Property
-   `UNIFICATION_SERVICE_KEY` once (dev and prod keys differ). It is the only
-   thing the pipeline cannot set.
+5. Nothing else: the language routes need no key, and a built project
+   carries its environment, so no Script Properties are required.
 
 For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
 (git-ignored) and fill in the script ids, or export `SCRIPT_ID_DEV` /
@@ -81,12 +80,8 @@ For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
 
    | Property | Required | Value |
    | --- | --- | --- |
-   | `UNIFICATION_SERVICE_KEY` | yes | Shared service key for the `/public/*` language routes (same key the training portal uses as `UNIFICATION_SERVICE_KEY`). Dev and prod have different keys. |
    | `ADDON_ENV` | no | `prod` (default) or `dev`. Selects every environment-specific value: API Gateway ids, telemetry host, training and portal hosts, unification base URLs and the card heading. See `env.gs`. `UNIFICATION_ENV` is accepted as a legacy alias. |
 
-   Without the key the language routes answer 401; the add-on then falls back
-   to offering every shipped language and remembering the choice only on this
-   Google account.
 5. **Deploy as a test add-on**: create a Head deployment, install it under
    Gmail → Settings → Add-ons using the deployment ID, reload Gmail.
 
@@ -117,26 +112,26 @@ The behaviour mirrors `user-portal-micro-learning-v2` (`src/i18n/config.ts`,
 `src/lib/languageApi.ts`, branch `cyb4-1364`), so a user who picks Spanish in
 the add-on opens the training portal in Spanish and vice versa.
 
-**Backend routes** (unification platform, `x-service-key` auth):
+**Backend routes** (unification platform, public, no key):
 
 ```
-GET   /public/accounts/supported-languages?domain=acme.org
 GET   /public/users/preferred-language?domain=acme.org&email=jane@acme.org
+      -> { data: { preferredLanguage: "es" | null, supportedLanguages: ["en","es"] } }
 PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
 ```
 
 **Which languages the dropdown offers**: exactly the account's supported
-list from `GET /public/accounts/supported-languages`, in the backend's order,
+list from the preferred-language GET, in the backend's order,
 using the backend's codes. Admins add or remove languages there; nothing in
 the add-on changes. Name and flag for each option are derived from the code
 (`Intl.DisplayNames`, `Intl.Locale#maximize`). If fewer than two remain,
 the dropdown is hidden and that one language is used. If the list cannot be
-read at all (no service key, unknown domain, network), the dropdown is hidden
+read at all (unknown domain, network), the dropdown is hidden
 and the card stays in English; the backend is the only source of the offer.
 
 **Which language a card renders in**, first match wins:
 
-1. Preference stored on the account (`GET preferred-language`)
+1. Preference stored on the account (same GET)
 2. Last choice made in this add-on (Apps Script user property)
 3. Gmail's UI language, if shipped (`commonEventObject.userLocale`)
 4. English
@@ -146,7 +141,7 @@ account, then the home card is redrawn. A failed PATCH still switches the UI
 and shows a "could not save" toast.
 
 **No caching**: every time the add-on renders a card it calls the region
-lookup, supported-languages and preferred-language routes, so a change made
+lookup and the preferred-language GET, so a change made
 by an admin or in the portal shows up the next time the add-on is opened.
 The user's last explicit choice in the add-on is kept as a user property,
 used only when the account has no stored preference.

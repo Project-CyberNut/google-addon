@@ -49,9 +49,10 @@ function shippedLocales() {
 }
 
 /**
- * No caching: every card render asks the backend for the region, the
- * account's supported languages and the stored preference, so a change made
- * by an admin or in the portal shows up the next time the add-on is opened.
+ * No caching: every card render asks the backend for the region, then for
+ * the stored preference and the account's supported languages (one call), so
+ * a change made by an admin or in the portal shows up the next time the
+ * add-on is opened.
  * The one thing kept locally is the user's last explicit choice here, as a
  * fallback for when the account has nothing stored.
  */
@@ -475,8 +476,12 @@ async function getLanguageContext(e) {
   if (domain) {
     var reg = await resolveRegion(domain);
     identity = { domain: domain, email: email, region: reg };
-    supported = getSupportedLanguages(domain, reg);
-    preferred = getPreferredLanguage(identity);
+    // One GET returns both the stored preference and the account's list.
+    var preference = getLanguagePreference(identity);
+    if (preference) {
+      supported = preference.supportedLanguages;
+      preferred = preference.preferredLanguage;
+    }
   } else {
     console.warn("getLanguageContext|no account domain - language selector hidden");
   }
