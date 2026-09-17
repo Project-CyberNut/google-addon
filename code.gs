@@ -1,4 +1,4 @@
-var version = "v 2.4.4"
+var version = "v 2.4.5"
 var heading = CardService.newTextParagraph().setText(
   `<b>Cybernut Reporting Tool</b>  ${version}`
 );
@@ -71,28 +71,74 @@ async function region(domainNameTo) {
   }
 }
 
-function foundReportUrl(e) {
-  const msgId = e?.messageMetadata?.messageId || e?.gmail?.messageId;
-  console.log('foundReportUrl|called!', { messageId: msgId });
-  if (!msgId) return false;
-  const message = GmailApp.getMessageById(msgId);
-  const emailBody = message.getBody();
-  const encodedTarget = 'training.cybernut.com';
-  const found = emailBody.includes(encodedTarget);
-  console.log('foundReportUrl|result|', { found });
-  return found;
+// Landing hosts a simulation body can point at. v1 campaigns render
+// https://www.cybernut-k12.com/report?... (TrainingCampaignEmail.ts) and v2/v2.3 render
+// https://training.cybernut.com/report?... (TrainingCampaignEmailV2.ts getReportBaseUrl).
+// Checking only one of the two is what let v1 simulations fall through to the threat path.
+var CAMPAIGN_LANDING_HOSTS = [
+  'www.cybernut-k12.com',
+  'training.cybernut.com'
+];
+
+// Takes the body the caller already fetched - handleStep1 has it, and a second
+// GmailApp.getMessageById() is pure cost inside the 30s Card-service callback budget.
+function foundReportUrl(emailBody) {
+  try {
+    if (!emailBody) {
+      console.log('foundReportUrl|result|', { found: false, reason: 'no body' });
+      return false;
+    }
+
+    const raw = String(emailBody).toLowerCase();
+    const haystacks = [raw];
+    // addClickTracking() rewrites every href to
+    // https://<tracker>/click?destUrl=<percent-encoded original>. Host names survive
+    // encoding intact, but decode anyway so a doubly-wrapped link still matches.
+    // decodeURIComponent throws on malformed sequences, hence the inner catch.
+    try {
+      const decoded = decodeURIComponent(raw);
+      if (decoded !== raw) haystacks.push(decoded);
+    } catch (decodeError) {
+      console.log('foundReportUrl|decode skipped|', decodeError.toString());
+    }
+
+    for (var h = 0; h < haystacks.length; h++) {
+      const hay = haystacks[h];
+
+      for (var i = 0; i < CAMPAIGN_LANDING_HOSTS.length; i++) {
+        if (hay.indexOf(CAMPAIGN_LANDING_HOSTS[i]) !== -1) {
+          console.log('foundReportUrl|result|', { found: true, matched: CAMPAIGN_LANDING_HOSTS[i] });
+          return true;
+        }
+      }
+
+      // Difficulty-4 campaigns point at the lookalike domain itself
+      // (getDifficultyLevelFourReportBaseUrl), so neither cybernut host appears.
+      // Anchor on // or . so we match a host, not a mention in prose.
+      for (var j = 0; j < SIMULATION_SENDER_DOMAINS.length; j++) {
+        const d = SIMULATION_SENDER_DOMAINS[j];
+        if (hay.indexOf('//' + d) !== -1 || hay.indexOf('.' + d) !== -1) {
+          console.log('foundReportUrl|result|', { found: true, matched: d });
+          return true;
+        }
+      }
+    }
+
+    console.log('foundReportUrl|result|', { found: false });
+    return false;
+  } catch (error) {
+    console.log('foundReportUrl|error|caught!', error.toString());
+    return false;
+  }
 }
 
 
 
-function cybernutDomains(senderDomain) {
-  if (!senderDomain) {
-    return false;
-  }
-
-  const domain = senderDomain.toLowerCase();
-
-  const suspiciousDomains = [
+// Sender domains used by simulation campaigns. Hoisted to module scope so
+// foundReportUrl() can also scan the message body for them - difficulty-4 campaigns
+// land on the lookalike domain itself rather than a cybernut host, so the body is the
+// only place they show up.
+var SIMULATION_SENDER_DOMAINS = [
     'k12districtnotification.com',
     'google-notice-alert.com',
     'google-k12-support.com',
@@ -169,9 +215,85 @@ function cybernutDomains(senderDomain) {
     'tiktok-teams.com',
     'hulu-connect.com',
     'netflix-updates.com',
-    'schoology-communications.com'
-  ];
-  const isSuspicious = suspiciousDomains.includes(domain);
+    'schoology-communications.com',
+    // Used by difficultyLevelFourDestinationDomains (login.zoom-services.com,
+    // login.amzn-alerts.com) but previously absent from this list.
+    'zoom-services.com',
+    'amzn-alerts.com',
+    // Reconciled against campaign GENERIC_SENDER values, 17 Sep 2026: the list had
+    // drifted 45 domains behind since it was last updated 11 Dec 2025 (346bb8a).
+    'aeries-portal.com',
+    'blackbaud-connect-portal.com',
+    'blackboard-portal.com',
+    'bloomz-portal.com',
+    'classcraft-portal.com',
+    'classdojo-portal.com',
+    'clever-portal.com',
+    'contentkeeper-by-impero-portal.com',
+    'coursera-portal.com',
+    'district-colleague.com',
+    'district-hr-office.com',
+    'district-it-director.com',
+    'district-parent.com',
+    'district-principal.com',
+    'district-superintendent.com',
+    'educlimber-portal.com',
+    'eschool-data-portal.com',
+    'facebook-security-notice.com',
+    'facts-sis-portal.com',
+    'ferpa-compliance-office-notice.com',
+    'formative-portal.com',
+    'goguardian-portal.com',
+    'hero-k12-portal.com',
+    'i-ready-portal.com',
+    'infinite-campus-portal.com',
+    'lightspeed-systems-portal.com',
+    'linkdn-learning-portal.com',
+    'linq-portal.com',
+    'map-portal.com',
+    'nwea-portal.com',
+    'parentsquare-portal.com',
+    'paypaal-alerts.com',
+    'paypal-account-notice.com',
+    'pbis-rewards-portal.com',
+    'pear-assessment-portal.com',
+    'quickbooks-for-education-portal.com',
+    'remind-portal.com',
+    'schoolmessenger-portal.com',
+    'schoolstatus-portal.com',
+    'screencastify-portal.com',
+    'skyward-portal.com',
+    'stafftrac-eduvistas-portal.com',
+    'state-education-department-notice.com',
+    'tax-notice-services.com',
+    'vector-solutions-portal.com'
+];
+
+// Port of parseDomainFromSender() in
+// cybernut-selector-service/lambda/TrainingCampaignEmailV2.ts - the same senders this
+// has to recognise are built there. Pulls the address out of "Name <user@domain>"
+// first, so a display name containing an "@" (common in spoof templates) no longer
+// makes the naive split("@")[1] return garbage and miss the domain list.
+function parseDomainFromSender(sender) {
+  if (!sender) return '';
+  const match = String(sender).match(/<([^>]+)>/);
+  const email = match ? match[1] : String(sender);
+  const parts = email.split('@');
+  return parts.length > 1 ? parts[parts.length - 1].trim().toLowerCase() : '';
+}
+
+function cybernutDomains(senderDomain) {
+  if (!senderDomain) {
+    return false;
+  }
+
+  const domain = senderDomain.toLowerCase();
+
+  // Difficulty-4 campaigns send from login./signin./auth. subdomains of these, so an
+  // exact match is not enough - the backend's own matcher accepts subdomains too.
+  const isSuspicious = SIMULATION_SENDER_DOMAINS.some(function (d) {
+    return domain === d || domain.slice(-(d.length + 1)) === '.' + d;
+  });
   console.log('cybernutDomains|result|', { domain, isSuspicious });
   return isSuspicious;
 }
@@ -225,6 +347,15 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
     await callErrorReportingApi(error, " ");
     throw new Error(`Domain verification failed: ${error.message}`);
   }
+}
+
+
+// A Workspace admin (or our own urlFetchWhitelist) can block the verification call before it
+// ever leaves Google. That reads nothing like an API error, so classify it separately - the
+// card copy and the alerting both need to tell "we were blocked" apart from "the API failed".
+function isUrlFetchBlocked(error) {
+  const message = (error && error.message) || String(error);
+  return message.indexOf("not permitted by your admin") !== -1;
 }
 
 
@@ -337,6 +468,30 @@ function buildErrorCard() {
 }
 
 
+// Shown when we could not check whether this email is one of our own campaign sends. We stop
+// here rather than guess: reading an unavailable verifier as "not a simulation" is what filed
+// real training emails as threats and trashed them. Say plainly that nothing was reported.
+function buildVerificationUnavailableCard(blocked) {
+  var cardBuilder = CardService.newCardBuilder();
+  var section = CardService.newCardSection();
+
+  var message = blocked
+    ? "We could not check this email because your Google Workspace administrator has blocked the add-on's connection to CyberNut.<br/><br/><b>This email has not been reported.</b><br/><br/>Please ask your IT administrator to allow the CyberNut Reporting Tool, or contact us at support@cybernut.com"
+    : "Verification is temporarily unavailable, so we could not check this email.<br/><br/><b>This email has not been reported.</b><br/><br/>Please try again shortly, or contact us at support@cybernut.com";
+
+  var closeButton = CardService.newTextButton()
+    .setText("Close")
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor("#4285F4")
+    .setOnClickAction(CardService.newAction().setFunctionName("HomePage"));
+
+  section.addWidget(CardService.newTextParagraph().setText(message));
+  section.addWidget(closeButton);
+  cardBuilder.addSection(section);
+  return cardBuilder.build();
+}
+
+
 
 
 async function HomePage(e) {
@@ -362,10 +517,11 @@ async function HomePage(e) {
     );
 
     if (e.gmail) {
+      // The homepage trigger is unconditional, so this runs for every message the user
+      // opens. It used to fetch and POST the full HTML body each time; nothing consumed
+      // it, so the fetch is gone with it.
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
-      let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
-      let bodyHtml = mailMessage.getBody();
-      await callErrorReportingApi("Home function run perfectly", bodyHtml);
+      await callErrorReportingApi("Home function run perfectly", "none");
     } else {
       console.log('HomePage|no email context|inbox view');
       await callErrorReportingApi("Home function run perfectly in inbox folder", "none");
@@ -443,7 +599,7 @@ async function handleStep1(e) {
     var sender = mailMessage.getFrom();
     var to = Session.getActiveUser().getEmail();
     const domainNameTo = to.split("@")[1];
-    const senderDomain = sender.split("@")[1].replace('>', '');
+    const senderDomain = parseDomainFromSender(sender);
     console.log('handleStep1|context|', { to, domainNameTo, sender, senderDomain });
 
     const message_google = mailMessage.getId();
@@ -454,22 +610,25 @@ async function handleStep1(e) {
     const awsRegion = await region(domainNameTo);
     const reg = awsRegion.aws_region;
     console.log('handleStep1|region|', { reg });
-    await callErrorReportingApi("Region " + reg, bodyHtml);
+    await callErrorReportingApi("Region " + reg, "none");
 
     try {
       let isVerifiedDomain = false;
       let campaignVersion = null;
       let isV2Campaign = false;
       let verifyFailed = false;
+      let verifyError = null;
+      let fallbackFailed = false;
       try {
         const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
         isVerifiedDomain = verifyResponse.messageExists;
         campaignVersion = verifyResponse.campaignVersion;
         isV2Campaign = verifyResponse.isV2Campaign === true;
         console.log('handleStep1|verifyResponse|', { isVerifiedDomain, campaignVersion, isV2Campaign });
-        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain + " campaignVersion " + campaignVersion + " isV2Campaign " + isV2Campaign, bodyHtml);
+        await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain + " campaignVersion " + campaignVersion + " isV2Campaign " + isV2Campaign, "none");
       } catch (e) {
         verifyFailed = true;
+        verifyError = e;
         await callErrorReportingApi(e.stack, bodyHtml);
       }
 
@@ -478,26 +637,56 @@ async function handleStep1(e) {
           const fallbackResponse = await callCampaignVersionApi(StatusMessage, reg);
           campaignVersion = fallbackResponse.campaignVersion;
           isV2Campaign = fallbackResponse.isV2Campaign === true;
-          console.log('handleStep1|campaignVersionFallback|', { campaignVersion, isV2Campaign });
+          // /campaignversion answers messageExists too (GetCampaignVersion.ts) and this
+          // used to throw it away, so a transient failure of /admindomainsgoogle turned
+          // a known simulation into a real-threat report.
+          if (fallbackResponse.messageExists === true) {
+            isVerifiedDomain = true;
+          }
+          console.log('handleStep1|campaignVersionFallback|', { isVerifiedDomain, campaignVersion, isV2Campaign });
         } catch (fallbackErr) {
+          fallbackFailed = true;
           console.error('handleStep1|campaignVersionFallback|failed|', fallbackErr.message);
           await callErrorReportingApi(fallbackErr.stack, bodyHtml);
         }
       }
 
-      const linkurl = foundReportUrl(e);
+      // Both lookups are down, so we know nothing about this email. The fallback shares a host
+      // with /admindomainsgoogle, so an admin block takes out both at once. Stop here: falling
+      // through leaves isVerifiedDomain false, which reads as "not a simulation" and reports a
+      // campaign send as a real threat.
+      if (verifyFailed && fallbackFailed) {
+        const blocked = isUrlFetchBlocked(verifyError);
+        console.log('handleStep1|verification unavailable|not reporting|', { blocked });
+        await callErrorReportingApi(
+          "VERIFY_UNAVAILABLE blocked=" + blocked + " step=1 messageId=" + StatusMessage,
+          "none"
+        );
+        return buildVerificationUnavailableCard(blocked);
+      }
+
+      const linkurl = foundReportUrl(bodyHtml);
       console.log('handleStep1|linkurl|', { linkurl });
 
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
-      if (campaignVersion === "v2" && isV2Campaign) {
-        var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
-        console.log('handleStep1|campaignV2|redirecting to training|', { redirectUrl });
+      // The API answer decides first, and the campaign version decides where it goes:
+      // messageExists + v2 -> training portal, messageExists + v1 -> cybernut-k12 portal.
+      // Previously the v2 branch was tested BEFORE messageExists, so a campaign that
+      // answered campaignVersion "v2" with isV2Campaign false silently landed on the v1
+      // portal. Keying off the API answer first makes the routing explicit.
+      if (isVerifiedDomain === true) {
+        var redirectUrl = (campaignVersion === "v2" && isV2Campaign)
+          ? `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`
+          : `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        console.log('handleStep1|verified campaign|redirecting|', { campaignVersion, isV2Campaign, redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
-      } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
-        console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
+      } else if (cybernutDomains(senderDomain) || linkurl === true) {
+        // Not verified by the API, but a local signal says simulation. The version is
+        // unknown here, so use the v1 portal, which handles both.
+        console.log('handleStep1|local signal|redirecting to portal|', { senderDomain, linkurl });
         var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
@@ -592,7 +781,7 @@ async function handleStep2(e) {
     const awsRegion = await region(domainNameTo);
     const reg = awsRegion.aws_region;
     console.log('handleStep2|region|', { reg });
-    await callErrorReportingApi("Aws region " + reg, bodyHtml);
+    await callErrorReportingApi("Aws region " + reg, "none");
 
     // Fetch attachments once — reused in log and payload
     const attachmentIds = getAttachmentIds(messageId);
@@ -605,7 +794,7 @@ async function handleStep2(e) {
     console.log('handleStep2|suspiciousEmailResponse|', { suspiciousEmailResponse });
     await callErrorReportingApi(
       "forward suspicious email " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
-      bodyHtml
+      "none"
     );
 
     adminMessageForThirdStep = suspiciousEmailResponse.CONFIRMATION_MESSAGE;
@@ -629,9 +818,81 @@ async function handleStep2(e) {
       clientType: "google add on"
     };
 
+    // Verify BEFORE reporting. This used to run *after* EventDispatcherApi, and only
+    // ever read trashEmail - so a simulation that slipped past handleStep1 was filed as
+    // a real threat and then deleted from the user's inbox, with the one call that could
+    // have prevented it happening too late to matter.
+    let shouldTrash = false;
+    let verifiedSimulation = false;
+    let isV2Simulation = false;
+    let verifyFailed = false;
+    let verifyError = null;
+    let fallbackFailed = false;
+    try {
+      const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
+      shouldTrash = verifyResponse.trashEmail === true;
+      verifiedSimulation = verifyResponse.messageExists === true;
+      isV2Simulation =
+        verifyResponse.campaignVersion === "v2" && verifyResponse.isV2Campaign === true;
+      console.log('handleStep2|verifyResponse|', { verifiedSimulation, isV2Simulation, shouldTrash });
+      await callErrorReportingApi(
+        "Verify messageExists " + verifiedSimulation + " trashEmail " + shouldTrash,
+        "none"
+      );
+    } catch (e) {
+      // Verification is unavailable. Never trash on this path - we cannot tell a simulation
+      // from real mail here, and deleting the user's email is the one step we cannot undo.
+      verifyFailed = true;
+      verifyError = e;
+      shouldTrash = false;
+      await callErrorReportingApi(e.stack, bodyHtml);
+    }
+
+    // Same second opinion handleStep1 gets. /campaignversion answers messageExists too, so a
+    // one-off failure of /admindomainsgoogle should not cost us the recognition.
+    if (verifyFailed) {
+      try {
+        const fallbackResponse = await callCampaignVersionApi(StatusMessage, reg);
+        verifiedSimulation = fallbackResponse.messageExists === true;
+        isV2Simulation =
+          fallbackResponse.campaignVersion === "v2" && fallbackResponse.isV2Campaign === true;
+        console.log('handleStep2|campaignVersionFallback|', { verifiedSimulation, isV2Simulation });
+      } catch (fallbackErr) {
+        fallbackFailed = true;
+        console.error('handleStep2|campaignVersionFallback|failed|', fallbackErr.message);
+        await callErrorReportingApi(fallbackErr.stack, bodyHtml);
+      }
+    }
+
+    // Nothing left to ask. Stop before EventDispatcherApi - reaching it with an unverified
+    // email is exactly how a training send became a Reported Threats case.
+    if (verifyFailed && fallbackFailed) {
+      const blocked = isUrlFetchBlocked(verifyError);
+      console.log('handleStep2|verification unavailable|not reporting|', { blocked });
+      await callErrorReportingApi(
+        "VERIFY_UNAVAILABLE blocked=" + blocked + " step=2 messageId=" + StatusMessage,
+        "none"
+      );
+      return buildVerificationUnavailableCard(blocked);
+    }
+
+    if (verifiedSimulation) {
+      // A known campaign send. Hand it to the training flow instead of Reported Threats,
+      // picking the same portal handleStep1 would have picked for this campaign version.
+      const encodedStatusMessage = encodeURIComponent(StatusMessage);
+      const simRedirectUrl = isV2Simulation
+        ? `https://training.cybernut.com/report?messageid=${encodedStatusMessage}&region=${reg}`
+        : `https://www.cybernut-k12.com/report?messageid=${encodedStatusMessage}&region=${reg ? reg : "us-east-1"}`;
+      console.log('handleStep2|verified simulation|skipping eventdispatcher|', { isV2Simulation, simRedirectUrl });
+      await callErrorReportingApi("Skipped eventdispatcher, verified simulation", "none");
+      return CardService.newActionResponseBuilder()
+        .setOpenLink(CardService.newOpenLink().setUrl(simRedirectUrl))
+        .build();
+    }
+
     const EventDispatcherApiCall = await EventDispatcherApi(payload, serviceUrl, reg);
     console.log('handleStep2|EventDispatcherApiCall|', { EventDispatcherApiCall });
-    await callErrorReportingApi("Event Dispatcher " + EventDispatcherApiCall, bodyHtml);
+    await callErrorReportingApi("Event Dispatcher " + EventDispatcherApiCall, "none");
 
     var builder = CardService.newCardBuilder();
     var section = CardService.newCardSection()
@@ -644,18 +905,7 @@ async function handleStep2(e) {
           : defaultMessageForThirdStep
       ));
 
-    let isVerifiedDomain = false;
-    try {
-      const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
-      isVerifiedDomain = verifyResponse.trashEmail;
-      console.log('handleStep2|isVerifiedDomain|', { isVerifiedDomain });
-      await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
-    } catch (e) {
-      await callErrorReportingApi(e.stack, bodyHtml);
-      isVerifiedDomain = true;
-    }
-
-    if (isVerifiedDomain === true) {
+    if (shouldTrash === true) {
       console.log('handleStep2|moving email to trash');
       mailMessage.moveToTrash();
       section.addWidget(CardService.newTextParagraph().setText('Email moved to trash. Please refresh your Gmail view.'));
