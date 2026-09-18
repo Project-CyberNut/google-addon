@@ -322,6 +322,25 @@ function debugLocaleDerivation(codes) {
 /** Locale of the current execution. Set by initLocale(); read by t(). */
 var currentLocale = DEFAULT_LOCALE;
 
+/**
+ * The locale every outbound call carries, so the backend answers and logs in
+ * the same language the card is rendered in. Until getLanguageContext() has
+ * run this is the default, which is what the very first calls of an execution
+ * (the region lookup behind the preference GET) send.
+ */
+function currentLang() {
+  return currentLocale || DEFAULT_LOCALE;
+}
+
+/**
+ * `lang=<locale>` for a URL that already has a query string. The preferred-
+ * language GET is the one exception: it *reads* the stored language, so
+ * sending one there would be telling it the answer.
+ */
+function langParam() {
+  return "&lang=" + encodeURIComponent(currentLang());
+}
+
 /** The shipped catalogue for a tag: exact (`pt-br`), then base (`pt`), else null. */
 function catalogueFor(code) {
   if (!code) return null;

@@ -15,7 +15,7 @@ async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
   console.log(`callErrorReportingApi|called| version: ${version}`);
   try {
-    const url = `${env().telemetryHost}/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
+    const url = `${env().telemetryHost}/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}${langParam()}`;
     const payload = {
       id: Session.getActiveUser().getEmail(),
       body: String(error) + ` Add-On Version: ${version}`,
@@ -42,7 +42,7 @@ async function region(domainNameTo) {
   console.log('region|called!', { domainNameTo });
   try {
     const res = UrlFetchApp.fetch(
-      `${env().userRegionHost}/userregion?domain=${domainNameTo}`,
+      `${env().userRegionHost}/userregion?domain=${domainNameTo}${langParam()}`,
       {
         method: "get",
         headers: { "Content-Type": "application/json" },
@@ -207,7 +207,7 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
   console.log('verifyDomain|called!', { sourceid, messageid, region, activeuser });
   try {
     const { verifyUrl } = getRegionUrls(region);
-    const apiUrl = `https://${verifyUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}`;
+    const apiUrl = `https://${verifyUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}${langParam()}`;
     console.log('verifyDomain|apiUrl|', { apiUrl });
 
     const response = UrlFetchApp.fetch(apiUrl, {
@@ -249,7 +249,7 @@ function getRegionUrls(region) {
 async function callCampaignVersionApi(messageId, reg) {
   console.log('callCampaignVersionApi|called!', { messageId, reg });
   const { verifyUrl } = getRegionUrls(reg);
-  const url = `https://${verifyUrl}.execute-api.${reg}.amazonaws.com/campaignversion`;
+  const url = `https://${verifyUrl}.execute-api.${reg}.amazonaws.com/campaignversion?lang=${encodeURIComponent(currentLang())}`;
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     contentType: "application/json",
@@ -269,7 +269,7 @@ async function callCampaignVersionApi(messageId, reg) {
 
 async function EventDispatcherApi(payload, serviceUrl, reg) {
   console.log('EventDispatcherApi|called!', { serviceUrl, reg, domain: payload.domain, action: payload.action });
-  const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`;
+  const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher?lang=${encodeURIComponent(currentLang())}`;
 
   const options = {
     method: "post",
@@ -292,7 +292,7 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
 
 async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
   console.log('getDomainOrFallback|called!', { domainNameTo, adminUrl, reg });
-  const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`;
+  const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail?lang=${encodeURIComponent(currentLang())}`;
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     headers: { "Content-Type": "application/json" },
@@ -515,14 +515,14 @@ async function handleStep1(e) {
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
       if (campaignVersion === "v2" && isV2Campaign) {
-        var redirectUrl = `https://${env().trainingHost}/report?messageid=${encodedMessageId}&region=${reg}`;
+        var redirectUrl = `https://${env().trainingHost}/report?messageid=${encodedMessageId}&region=${reg}${langParam()}`;
         console.log('handleStep1|campaignV2|redirecting to training|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
       } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
-        var redirectUrl = `https://${env().portalHost}/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        var redirectUrl = `https://${env().portalHost}/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}${langParam()}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
@@ -716,7 +716,7 @@ async function openLearnAddonLink() {
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://${env().trainingHost}/onboarding?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo`
+          `https://${env().trainingHost}/onboarding?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo${langParam()}`
         )
       )
       .build();
