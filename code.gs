@@ -1,16 +1,21 @@
-var version = "v 2.4.4"
-var heading = CardService.newTextParagraph().setText(
-  `<b>Cybernut Reporting Tool</b>  ${version}`
-);
-var alreadyClickedHeading = CardService.newTextParagraph().setText(
-  "<b>WAIT - Did you accidentally click on something in this email?</b>"
-);
+var version = "v 2.5.0"
+
+/** Product name is a brand; only the surrounding copy is translated. Env-specific (env.gs). */
+function headingWidget() {
+  return CardService.newTextParagraph().setText(
+    `<b>${env().heading}</b>  ${version}`
+  );
+}
+
+function alreadyClickedHeadingWidget() {
+  return CardService.newTextParagraph().setText(t("step1.waitHeading"));
+}
 
 async function callErrorReportingApi(error, htmlbody) {
   var now = new Date();
   console.log(`callErrorReportingApi|called| version: ${version}`);
   try {
-    const url = `https://560ef3pt4j.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}`;
+    const url = `${env().telemetryHost}/microsoftaddinactivitynew?timestamp=${now.toLocaleString()}${langParam()}`;
     const payload = {
       id: Session.getActiveUser().getEmail(),
       body: String(error) + ` Add-On Version: ${version}`,
@@ -37,17 +42,21 @@ async function region(domainNameTo) {
   console.log('region|called!', { domainNameTo });
   try {
     const res = UrlFetchApp.fetch(
-      `https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com/userregion?domain=${domainNameTo}`,
+      `${env().userRegionHost}/userregion?domain=${domainNameTo}${langParam()}`,
       {
         method: "get",
         headers: { "Content-Type": "application/json" },
-        muteHttpExceptions: false,
+        // Muted so a failure hands us its body to read the message_code off,
+        // instead of throwing before we ever see it.
+        muteHttpExceptions: true,
       }
     );
 
     const statusCode = res.getResponseCode();
     if (statusCode !== 200) {
-      throw new Error(`API request failed with status ${statusCode}`);
+      const resolved = resolveApiMessage(statusCode, res.getContentText());
+      console.log('region|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+      throw apiError(`API request failed with status ${statusCode}`, resolved);
     }
 
     const content = res.getContentText();
@@ -77,7 +86,7 @@ function foundReportUrl(e) {
   if (!msgId) return false;
   const message = GmailApp.getMessageById(msgId);
   const emailBody = message.getBody();
-  const encodedTarget = 'training.cybernut.com';
+  const encodedTarget = env().trainingHost;
   const found = emailBody.includes(encodedTarget);
   console.log('foundReportUrl|result|', { found });
   return found;
@@ -202,18 +211,21 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
   console.log('verifyDomain|called!', { sourceid, messageid, region, activeuser });
   try {
     const { verifyUrl } = getRegionUrls(region);
-    const apiUrl = `https://${verifyUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}`;
+    const apiUrl = `https://${verifyUrl}.execute-api.${region}.amazonaws.com/admindomainsgoogle?gmailId=${sourceid}&user_email=${activeuser}&messageId=${encodeURIComponent(messageid)}${langParam()}`;
     console.log('verifyDomain|apiUrl|', { apiUrl });
 
     const response = UrlFetchApp.fetch(apiUrl, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      muteHttpExceptions: false,
+      // See region(): muted so a failure body is readable for its message_code.
+      muteHttpExceptions: true,
     });
 
     const statusCode = response.getResponseCode();
     if (statusCode !== 200) {
-      throw new Error(`API returned status ${statusCode}`);
+      const resolved = resolveApiMessage(statusCode, response.getContentText());
+      console.log('verifyDomain|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+      throw apiError(`API returned status ${statusCode}`, resolved);
     }
 
     const jsonResponse = JSON.parse(response.getContentText());
@@ -223,21 +235,21 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
   } catch (error) {
     console.error('verifyDomain|failed|', error.message);
     await callErrorReportingApi(error, " ");
-    throw new Error(`Domain verification failed: ${error.message}`);
+    // Re-wrapped, so the resolved code survives to whichever catch builds the card.
+    throw apiError(
+      `Domain verification failed: ${error.message}`,
+      resolveApiMessageFromError(error)
+    );
   }
 }
 
 
 
 
-// Returns all API Gateway URL prefixes for a given AWS region
+// Returns all API Gateway URL prefixes for a given AWS region (values per environment in env.gs)
 function getRegionUrls(region) {
-  const mapping = {
-    "us-east-1":      { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" },
-    "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", adminUrl: "b4nzi83qm2", serviceUrl: "vahgicl5qh" },
-    "eu-central-1":   { verifyUrl: "telmnzu55i", adminUrl: "dej7cfclm9", serviceUrl: "p3shdnpenc" },
-  };
-  const urls = mapping[region] || { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" };
+  const mapping = env().regions;
+  const urls = mapping[region] || mapping["us-east-1"];
   console.log('getRegionUrls|', { region, urls });
   return urls;
 }
@@ -248,7 +260,7 @@ function getRegionUrls(region) {
 async function callCampaignVersionApi(messageId, reg) {
   console.log('callCampaignVersionApi|called!', { messageId, reg });
   const { verifyUrl } = getRegionUrls(reg);
-  const url = `https://${verifyUrl}.execute-api.${reg}.amazonaws.com/campaignversion`;
+  const url = `https://${verifyUrl}.execute-api.${reg}.amazonaws.com/campaignversion?lang=${encodeURIComponent(currentLang())}`;
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     contentType: "application/json",
@@ -258,7 +270,9 @@ async function callCampaignVersionApi(messageId, reg) {
   const statusCode = response.getResponseCode();
   console.log('callCampaignVersionApi|responseCode|', { statusCode });
   if (statusCode !== 200) {
-    throw new Error(`campaignversion API returned status ${statusCode}`);
+    const resolved = resolveApiMessage(statusCode, response.getContentText());
+    console.log('callCampaignVersionApi|coded failure|', { code: resolved.code, detail: resolved.detail });
+    throw apiError(`campaignversion API returned status ${statusCode}`, resolved);
   }
   const jsonResponse = JSON.parse(response.getContentText());
   console.log('callCampaignVersionApi|result|', { jsonResponse });
@@ -268,7 +282,7 @@ async function callCampaignVersionApi(messageId, reg) {
 
 async function EventDispatcherApi(payload, serviceUrl, reg) {
   console.log('EventDispatcherApi|called!', { serviceUrl, reg, domain: payload.domain, action: payload.action });
-  const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher`;
+  const url = `https://${serviceUrl}.execute-api.${reg}.amazonaws.com/eventdispatcher?lang=${encodeURIComponent(currentLang())}`;
 
   const options = {
     method: "post",
@@ -283,15 +297,21 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
   console.log('EventDispatcherApi|responseCode|', { code });
   if (code === 200) {
     return response.getContentText();
-  } else {
-    return `Error: Received HTTP ${code} - ${response.getContentText()}`;
   }
+
+  // The report itself already went out; this endpoint only records the event,
+  // so a failure here does not change what the user is shown. The resolved
+  // code is logged rather than surfaced — it is what makes an unrecorded
+  // report traceable afterwards.
+  const resolved = resolveApiMessage(code, response.getContentText());
+  console.log('EventDispatcherApi|coded failure|', { code: resolved.code, detail: resolved.detail });
+  return `Error: Received HTTP ${code} - ${resolved.code} - ${response.getContentText()}`;
 }
 
 
 async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
   console.log('getDomainOrFallback|called!', { domainNameTo, adminUrl, reg });
-  const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail`;
+  const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail?lang=${encodeURIComponent(currentLang())}`;
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     headers: { "Content-Type": "application/json" },
@@ -305,27 +325,39 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
     return JSON.parse(response.getContentText());
   }
 
-  return new Error(
-    `API failed. Status: ${statusCode} - ${response.getContentText()}`
+  const resolved = resolveApiMessage(statusCode, response.getContentText());
+  console.log('getDomainOrFallback|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+  // Returned rather than thrown, as before — the caller reads fields off it and
+  // fails on the next line. The code rides along so that failure renders right.
+  return apiError(
+    `API failed. Status: ${statusCode} - ${response.getContentText()}`,
+    resolved
   );
 }
 
 
 
 
-let defaultMessageForThirdStep =
-  "Thank you, you will hear back from IT if you need to take any further action.";
 let adminMessageForThirdStep = "";
 
-function buildErrorCard() {
+/**
+ * Uses whatever locale the entry point resolved (English before any did).
+ *
+ * `code` is an API message_code — when the failure came from a backend that
+ * told us what went wrong, the card says that, in the user's language, via the
+ * catalogue in apiMessages.gs. The generic sentence stays for everything else:
+ * a Gmail API failure, a bad message id, anything that never involved a
+ * request. The backend's own English is never shown, only its code.
+ */
+function buildErrorCard(code, params) {
   var cardBuilder = CardService.newCardBuilder();
   var section = CardService.newCardSection();
   var textWidget = CardService.newTextParagraph().setText(
-    "There was an error in completing your action, for escalation / faster resolution you can contact us at support@cybernut.com"
+    isApiMessageCode(code) ? apiMessage(code, params) : t("error.generic")
   );
 
   var closeButton = CardService.newTextButton()
-    .setText("Close")
+    .setText(t("common.close"))
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
     .setBackgroundColor("#4285F4")
     .setOnClickAction(CardService.newAction().setFunctionName("HomePage"));
@@ -336,30 +368,58 @@ function buildErrorCard() {
   return cardBuilder.build();
 }
 
+function onboardingFooter() {
+  return CardService.newFixedFooter().setPrimaryButton(
+    CardService.newTextButton()
+      .setText(t("home.onboardingButton"))
+      .setDisabled(false)
+      .setOnClickAction(
+        CardService.newAction().setFunctionName("openLearnAddonLink")
+      )
+  );
+}
 
+/**
+ * The home card itself, with no telemetry side effects: HomePage() wraps it
+ * for the trigger, and the language dropdown redraws it after a switch.
+ */
+async function buildHomeCard(e) {
+  const ctx = await getLanguageContext(e);
 
+  var reportButton = CardService.newTextButton()
+    .setText(t("home.reportButton"))
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setBackgroundColor("#D83025")
+    .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
+
+  var builder = CardService.newCardBuilder();
+
+  // Language dropdown first, at the top of the card.
+  const languageSelector = buildLanguageSelector(ctx);
+  if (languageSelector) {
+    builder.addSection(CardService.newCardSection().addWidget(languageSelector));
+  }
+
+  builder.addSection(
+    CardService.newCardSection()
+      .setCollapsible(false)
+      .setNumUncollapsibleWidgets(1)
+      .addWidget(headingWidget())
+      .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
+  );
+
+  if (e) {
+    builder.addSection(CardService.newCardSection().addWidget(reportButton));
+  }
+
+  builder.setFixedFooter(onboardingFooter());
+  return builder.build();
+}
 
 async function HomePage(e) {
   console.log('HomePage|called!');
   try {
-    var reportButton = CardService.newTextButton()
-      .setText("Report Email")
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      .setBackgroundColor("#D83025")
-      .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
-
-    var builder = CardService.newCardBuilder();
-    builder.addSection(
-      CardService.newCardSection()
-        .setCollapsible(false)
-        .setNumUncollapsibleWidgets(1)
-        .addWidget(heading)
-        .addWidget(
-          CardService.newTextParagraph().setText(
-            "Suspicious content or sender? Report it for further analysis."
-          )
-        )
-    );
+    await initLocale(e);
 
     if (e.gmail) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
@@ -371,35 +431,45 @@ async function HomePage(e) {
       await callErrorReportingApi("Home function run perfectly in inbox folder", "none");
     }
 
-    if (e) {
-      builder.addSection(CardService.newCardSection().addWidget(reportButton));
-    }
-
-    builder.setFixedFooter(
-      CardService.newFixedFooter().setPrimaryButton(
-        CardService.newTextButton()
-          .setText("Onboarding Tutorial")
-          .setDisabled(false)
-          .setOnClickAction(
-            CardService.newAction().setFunctionName("openLearnAddonLink")
-          )
-      )
-    );
-
-    var card = builder.build();
+    var card = await buildHomeCard(e);
     console.log('HomePage|card|built and returning!');
     return card;
   } catch (error) {
     console.log('HomePage|error|caught!', error.stack);
     await callErrorReportingApi(error.stack, " ");
-    return buildErrorCard();
+    return buildErrorCard(error.messageCode, error.messageParams);
   }
+}
+
+/**
+ * Checkbox values stay in English on purpose: they are what IT receives in
+ * the report body (handleStep2 joins them), so they must not vary by locale.
+ * Only the labels the user sees are translated.
+ */
+function buildActionsCheckboxGroup() {
+  return CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.CHECK_BOX)
+    .setFieldName("selectedItems")
+    .addItem(t("step1.actions.replied"), "I replied to the email", false)
+    .addItem(t("step1.actions.downloaded"), "I downloaded a file", false)
+    .addItem(t("step1.actions.openedAttachment"), "I opened an attachment", false)
+    .addItem(t("step1.actions.visitedLink"), "I visited a link", false)
+    .addItem(t("step1.actions.enteredPassword"), "I entered my password", false)
+    .addItem(t("step1.actions.forwarded"), "I forwarded the email", false)
+    .addItem(t("step1.actions.loggedIn"), "I logged into a page", false)
+    .addItem(t("step1.actions.none"), "None of the above", false);
 }
 
 async function handleStep1(e) {
   console.log('handleStep1|called!');
   let bodyHtml = "";
   let mailMessage = null;
+
+  try {
+    await initLocale(e);
+  } catch (localeErr) {
+    console.log('handleStep1|locale resolution failed|falling back to English|', localeErr.message);
+  }
 
   // Fetch message once — reused throughout the function
   if (e?.messageMetadata?.messageId) {
@@ -409,20 +479,10 @@ async function handleStep1(e) {
   }
 
   try {
-    var checkboxGroup = CardService.newSelectionInput()
-      .setType(CardService.SelectionInputType.CHECK_BOX)
-      .setFieldName("selectedItems")
-      .addItem("I replied to the email", "I replied to the email", false)
-      .addItem("I downloaded a file", "I downloaded a file", false)
-      .addItem("I opened an attachment", "I opened an attachment", false)
-      .addItem("I visited a link", "I visited a link", false)
-      .addItem("I entered my password", "I entered my password", false)
-      .addItem("I forwarded the email", "I forwarded the email", false)
-      .addItem("I logged into a page", "I logged into a page", false)
-      .addItem("None of the above", "None of the above", false);
+    var checkboxGroup = buildActionsCheckboxGroup();
 
     var reportButton = CardService.newTextButton()
-      .setText("Report Email")
+      .setText(t("home.reportButton"))
       .setOnClickAction(CardService.newAction().setFunctionName("handleStep2"))
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setBackgroundColor("#D83025");
@@ -431,9 +491,7 @@ async function handleStep1(e) {
       console.log('handleStep1|no messageId|showing open-email prompt');
       var cardBuilder = CardService.newCardBuilder();
       var section = CardService.newCardSection();
-      var textWidget = CardService.newTextParagraph().setText(
-        "Please open the email and look for the button in the top left corner. Click on it to go back and find the report button."
-      );
+      var textWidget = CardService.newTextParagraph().setText(t("step1.openEmailPrompt"));
       section.addWidget(textWidget);
       cardBuilder.addSection(section);
       return cardBuilder.build();
@@ -491,14 +549,14 @@ async function handleStep1(e) {
       var encodedMessageId = encodeURIComponent(StatusMessage);
 
       if (campaignVersion === "v2" && isV2Campaign) {
-        var redirectUrl = `https://training.cybernut.com/report?messageid=${encodedMessageId}&region=${reg}`;
+        var redirectUrl = `https://${env().trainingHost}/report?messageid=${encodedMessageId}&region=${reg}${langParam()}`;
         console.log('handleStep1|campaignV2|redirecting to training|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
           .build();
       } else if (cybernutDomains(senderDomain) || linkurl === true || isVerifiedDomain == true) {
         console.log('handleStep1|suspicious|redirecting to portal|', { senderDomain, linkurl, isVerifiedDomain });
-        var redirectUrl = `https://www.cybernut-k12.com/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}`;
+        var redirectUrl = `https://${env().portalHost}/report?messageid=${encodedMessageId}&region=${reg ? reg : "us-east-1"}${langParam()}`;
         console.log('handleStep1|redirectUrl|', { redirectUrl });
         return CardService.newActionResponseBuilder()
           .setOpenLink(CardService.newOpenLink().setUrl(redirectUrl))
@@ -515,30 +573,13 @@ async function handleStep1(e) {
             CardService.newCardSection()
               .setCollapsible(false)
               .setNumUncollapsibleWidgets(1)
-              .addWidget(alreadyClickedHeading)
-              .addWidget(
-                CardService.newTextParagraph().setText(
-                  "<b>You will not get in trouble by telling us.</b><br/><br/>By sharing this information, it will help your IT department monitor and catch potential cyber attacks in your school district.<br/><br/>"
-                )
-              )
-              .addWidget(
-                CardService.newTextParagraph().setText(
-                  "Thank you for your cooperation and transparency.<br/><br/><b>Please select from the list below if applicable:</b> "
-                )
-              )
+              .addWidget(alreadyClickedHeadingWidget())
+              .addWidget(CardService.newTextParagraph().setText(t("step1.reassurance")))
+              .addWidget(CardService.newTextParagraph().setText(t("step1.selectPrompt")))
               .addWidget(checkboxGroup)
               .addWidget(reportButton)
           );
-          builder.setFixedFooter(
-            CardService.newFixedFooter().setPrimaryButton(
-              CardService.newTextButton()
-                .setText("Onboarding Tutorial")
-                .setDisabled(false)
-                .setOnClickAction(
-                  CardService.newAction().setFunctionName("openLearnAddonLink")
-                )
-            )
-          );
+          builder.setFixedFooter(onboardingFooter());
           console.log('handleStep1|showing checkbox card');
           return builder.build();
         }
@@ -546,12 +587,12 @@ async function handleStep1(e) {
     } catch (error) {
       console.log('handleStep1|inner error|caught!', error.message);
       await callErrorReportingApi(error, bodyHtml);
-      return buildErrorCard();
+      return buildErrorCard(error.messageCode, error.messageParams);
     }
   } catch (e) {
     console.log('handleStep1|outer error|caught!', e.stack);
     await callErrorReportingApi(e.stack, bodyHtml);
-    return buildErrorCard();
+    return buildErrorCard(e.messageCode, e.messageParams);
   }
 }
 
@@ -561,6 +602,12 @@ async function handleStep1(e) {
 async function handleStep2(e) {
   console.log('handleStep2|called!');
   let bodyHtml = "";
+
+  try {
+    await initLocale(e);
+  } catch (localeErr) {
+    console.log('handleStep2|locale resolution failed|falling back to English|', localeErr.message);
+  }
 
   try {
     var selectedItemsValues = e.formInputs?.selectedItems;
@@ -603,6 +650,12 @@ async function handleStep2(e) {
 
     let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
     console.log('handleStep2|suspiciousEmailResponse|', { suspiciousEmailResponse });
+    // getDomainOrFallback answers with an Error rather than throwing one. Every
+    // field read below would be undefined, and the report would go out naming
+    // no recipient — so stop here and let the catch show what the API said.
+    if (suspiciousEmailResponse instanceof Error) {
+      throw suspiciousEmailResponse;
+    }
     await callErrorReportingApi(
       "forward suspicious email " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
       bodyHtml
@@ -637,11 +690,11 @@ async function handleStep2(e) {
     var section = CardService.newCardSection()
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
-      .addWidget(heading)
+      .addWidget(headingWidget())
       .addWidget(CardService.newTextParagraph().setText(
         suspiciousEmailResponse.CONFIRMATION_MESSAGE
           ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          : defaultMessageForThirdStep
+          : t("step2.defaultConfirmation")
       ));
 
     let isVerifiedDomain = false;
@@ -658,7 +711,7 @@ async function handleStep2(e) {
     if (isVerifiedDomain === true) {
       console.log('handleStep2|moving email to trash');
       mailMessage.moveToTrash();
-      section.addWidget(CardService.newTextParagraph().setText('Email moved to trash. Please refresh your Gmail view.'));
+      section.addWidget(CardService.newTextParagraph().setText(t("step2.movedToTrash")));
     }
 
     builder.addSection(section);
@@ -667,16 +720,7 @@ async function handleStep2(e) {
     console.log('handleStep2|checkInbox|', { checkInbox });
 
     if (checkInbox) {
-      builder.setFixedFooter(
-        CardService.newFixedFooter().setPrimaryButton(
-          CardService.newTextButton()
-            .setText("Onboarding Tutorial")
-            .setDisabled(false)
-            .setOnClickAction(
-              CardService.newAction().setFunctionName("openLearnAddonLink")
-            )
-        )
-      );
+      builder.setFixedFooter(onboardingFooter());
     }
 
     var card = builder.build();
@@ -685,7 +729,7 @@ async function handleStep2(e) {
   } catch (e) {
     console.log('handleStep2|error|caught!', e.stack);
     await callErrorReportingApi(e.stack, bodyHtml);
-    return buildErrorCard();
+    return buildErrorCard(e.messageCode, e.messageParams);
   }
 }
 
@@ -712,14 +756,14 @@ async function openLearnAddonLink() {
     return CardService.newActionResponseBuilder()
       .setOpenLink(
         CardService.newOpenLink().setUrl(
-          `https://training.cybernut.com/onboarding?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo`
+          `https://${env().trainingHost}/onboarding?sessionId=${generateUUID()}&region=${reg}&email=${email}&source=google_addon&tracker=demo${langParam()}`
         )
       )
       .build();
   } catch (e) {
     console.log('openLearnAddonLink|error|caught!', e.stack);
     await callErrorReportingApi(e.stack, " ");
-    return buildErrorCard();
+    return buildErrorCard(e.messageCode, e.messageParams);
   }
 }
 

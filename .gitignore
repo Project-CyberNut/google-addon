@@ -1,1 +1,6 @@
 .DS_Store
+*/settings.json
+node_modules/
+.clasp.json
+.clasprc.json
+clasp.targets.json
