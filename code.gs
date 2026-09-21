@@ -46,13 +46,17 @@ async function region(domainNameTo) {
       {
         method: "get",
         headers: { "Content-Type": "application/json" },
-        muteHttpExceptions: false,
+        // Muted so a failure hands us its body to read the message_code off,
+        // instead of throwing before we ever see it.
+        muteHttpExceptions: true,
       }
     );
 
     const statusCode = res.getResponseCode();
     if (statusCode !== 200) {
-      throw new Error(`API request failed with status ${statusCode}`);
+      const resolved = resolveApiMessage(statusCode, res.getContentText());
+      console.log('region|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+      throw apiError(`API request failed with status ${statusCode}`, resolved);
     }
 
     const content = res.getContentText();
@@ -213,12 +217,15 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
     const response = UrlFetchApp.fetch(apiUrl, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      muteHttpExceptions: false,
+      // See region(): muted so a failure body is readable for its message_code.
+      muteHttpExceptions: true,
     });
 
     const statusCode = response.getResponseCode();
     if (statusCode !== 200) {
-      throw new Error(`API returned status ${statusCode}`);
+      const resolved = resolveApiMessage(statusCode, response.getContentText());
+      console.log('verifyDomain|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+      throw apiError(`API returned status ${statusCode}`, resolved);
     }
 
     const jsonResponse = JSON.parse(response.getContentText());
@@ -228,7 +235,11 @@ async function verifyDomain(sourceid, messageid, region, activeuser) {
   } catch (error) {
     console.error('verifyDomain|failed|', error.message);
     await callErrorReportingApi(error, " ");
-    throw new Error(`Domain verification failed: ${error.message}`);
+    // Re-wrapped, so the resolved code survives to whichever catch builds the card.
+    throw apiError(
+      `Domain verification failed: ${error.message}`,
+      resolveApiMessageFromError(error)
+    );
   }
 }
 
@@ -259,7 +270,9 @@ async function callCampaignVersionApi(messageId, reg) {
   const statusCode = response.getResponseCode();
   console.log('callCampaignVersionApi|responseCode|', { statusCode });
   if (statusCode !== 200) {
-    throw new Error(`campaignversion API returned status ${statusCode}`);
+    const resolved = resolveApiMessage(statusCode, response.getContentText());
+    console.log('callCampaignVersionApi|coded failure|', { code: resolved.code, detail: resolved.detail });
+    throw apiError(`campaignversion API returned status ${statusCode}`, resolved);
   }
   const jsonResponse = JSON.parse(response.getContentText());
   console.log('callCampaignVersionApi|result|', { jsonResponse });
@@ -284,9 +297,15 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
   console.log('EventDispatcherApi|responseCode|', { code });
   if (code === 200) {
     return response.getContentText();
-  } else {
-    return `Error: Received HTTP ${code} - ${response.getContentText()}`;
   }
+
+  // The report itself already went out; this endpoint only records the event,
+  // so a failure here does not change what the user is shown. The resolved
+  // code is logged rather than surfaced — it is what makes an unrecorded
+  // report traceable afterwards.
+  const resolved = resolveApiMessage(code, response.getContentText());
+  console.log('EventDispatcherApi|coded failure|', { code: resolved.code, detail: resolved.detail });
+  return `Error: Received HTTP ${code} - ${resolved.code} - ${response.getContentText()}`;
 }
 
 
@@ -306,8 +325,13 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
     return JSON.parse(response.getContentText());
   }
 
-  return new Error(
-    `API failed. Status: ${statusCode} - ${response.getContentText()}`
+  const resolved = resolveApiMessage(statusCode, response.getContentText());
+  console.log('getDomainOrFallback|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+  // Returned rather than thrown, as before — the caller reads fields off it and
+  // fails on the next line. The code rides along so that failure renders right.
+  return apiError(
+    `API failed. Status: ${statusCode} - ${response.getContentText()}`,
+    resolved
   );
 }
 
@@ -316,11 +340,21 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
 
 let adminMessageForThirdStep = "";
 
-/** Uses whatever locale the entry point resolved (English before any did). */
-function buildErrorCard() {
+/**
+ * Uses whatever locale the entry point resolved (English before any did).
+ *
+ * `code` is an API message_code — when the failure came from a backend that
+ * told us what went wrong, the card says that, in the user's language, via the
+ * catalogue in apiMessages.gs. The generic sentence stays for everything else:
+ * a Gmail API failure, a bad message id, anything that never involved a
+ * request. The backend's own English is never shown, only its code.
+ */
+function buildErrorCard(code, params) {
   var cardBuilder = CardService.newCardBuilder();
   var section = CardService.newCardSection();
-  var textWidget = CardService.newTextParagraph().setText(t("error.generic"));
+  var textWidget = CardService.newTextParagraph().setText(
+    isApiMessageCode(code) ? apiMessage(code, params) : t("error.generic")
+  );
 
   var closeButton = CardService.newTextButton()
     .setText(t("common.close"))
@@ -403,7 +437,7 @@ async function HomePage(e) {
   } catch (error) {
     console.log('HomePage|error|caught!', error.stack);
     await callErrorReportingApi(error.stack, " ");
-    return buildErrorCard();
+    return buildErrorCard(error.messageCode, error.messageParams);
   }
 }
 
@@ -553,12 +587,12 @@ async function handleStep1(e) {
     } catch (error) {
       console.log('handleStep1|inner error|caught!', error.message);
       await callErrorReportingApi(error, bodyHtml);
-      return buildErrorCard();
+      return buildErrorCard(error.messageCode, error.messageParams);
     }
   } catch (e) {
     console.log('handleStep1|outer error|caught!', e.stack);
     await callErrorReportingApi(e.stack, bodyHtml);
-    return buildErrorCard();
+    return buildErrorCard(e.messageCode, e.messageParams);
   }
 }
 
@@ -616,6 +650,12 @@ async function handleStep2(e) {
 
     let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
     console.log('handleStep2|suspiciousEmailResponse|', { suspiciousEmailResponse });
+    // getDomainOrFallback answers with an Error rather than throwing one. Every
+    // field read below would be undefined, and the report would go out naming
+    // no recipient — so stop here and let the catch show what the API said.
+    if (suspiciousEmailResponse instanceof Error) {
+      throw suspiciousEmailResponse;
+    }
     await callErrorReportingApi(
       "forward suspicious email " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
       bodyHtml
@@ -689,7 +729,7 @@ async function handleStep2(e) {
   } catch (e) {
     console.log('handleStep2|error|caught!', e.stack);
     await callErrorReportingApi(e.stack, bodyHtml);
-    return buildErrorCard();
+    return buildErrorCard(e.messageCode, e.messageParams);
   }
 }
 
@@ -723,7 +763,7 @@ async function openLearnAddonLink() {
   } catch (e) {
     console.log('openLearnAddonLink|error|caught!', e.stack);
     await callErrorReportingApi(e.stack, " ");
-    return buildErrorCard();
+    return buildErrorCard(e.messageCode, e.messageParams);
   }
 }
 

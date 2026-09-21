@@ -79,7 +79,10 @@ function getLanguagePreference(identity) {
     var res = UrlFetchApp.fetch(url, { method: "get", headers: JSON_HEADERS, muteHttpExceptions: true });
     var code = res.getResponseCode();
     if (code !== 200) {
-      console.warn("getLanguagePreference|http failure|", { code: code, body: res.getContentText() });
+      // Logged as a message_code, not as the API's English: the selector just
+      // hides itself, but the code is what makes a silent hide diagnosable.
+      var failure = resolveApiMessage(code, res.getContentText());
+      console.warn("getLanguagePreference|http failure|", { status: code, code: failure.code, detail: failure.detail });
       return null;
     }
     var body = parseJsonSafe(res.getContentText());
@@ -121,7 +124,8 @@ function setPreferredLanguage(identity, lang) {
     var res = UrlFetchApp.fetch(url, { method: "patch", headers: JSON_HEADERS, muteHttpExceptions: true });
     var code = res.getResponseCode();
     if (code !== 200) {
-      console.warn("setPreferredLanguage|http failure|", { code: code, body: res.getContentText() });
+      var failure = resolveApiMessage(code, res.getContentText());
+      console.warn("setPreferredLanguage|http failure|", { status: code, code: failure.code, detail: failure.detail });
       callErrorReportingApi(
         "setPreferredLanguage returned " + code + " for lang " + lang + ": " + res.getContentText(),
         " "

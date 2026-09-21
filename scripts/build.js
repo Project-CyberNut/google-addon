@@ -36,7 +36,7 @@ if (!ADDON_NAMES[target]) {
 }
 
 /** Load order for the merged file: config first, then whatever depends on it. */
-const SOURCE_ORDER = ["env.gs", "languageApi.gs", "i18n.gs", "code.gs"];
+const SOURCE_ORDER = ["env.gs", "languageApi.gs", "i18n.gs", "apiMessages.gs", "code.gs"];
 
 /** Load env.gs in a sandbox and return its exports we need. */
 function loadEnv() {
