@@ -16,8 +16,8 @@
  *               user), then PATCH the preference to the account
  *
  * Card copy: MESSAGES holds the catalogues we ship. A language the backend
- * offers but we have no catalogue for still appears in the dropdown (name and
- * flag are derived from its code), is saved to the account, and renders the
+ * offers but we have no catalogue for still appears in the dropdown (its name
+ * is derived from its code), is saved to the account, and renders the
  * card copy in English until a catalogue is added. Keep every catalogue's
  * keys in sync with `en`; `t()` falls back to English for a missing key.
  */
@@ -25,13 +25,10 @@
 /**
  * Display overrides, keyed by language code, for when CLDR's derived answer
  * is not the one wanted. Normally empty: the native name comes from
- * Intl.DisplayNames, the flag's country from Intl.Locale#maximize (the same
- * CLDR rule the portal's LanguagePicker uses: en -> US, es -> ES, ar -> EG)
- * and the direction from the locale's text info.
+ * Intl.DisplayNames and the direction from the locale's text info.
  *   label    native name shown in the dropdown (never translated)
- *   country  ISO 3166 code of the flag to fly; "" for no flag
  *   rtl      true/false
- * Example: `"es": { country: "MX" }`
+ * Example: `"pt": { label: "Português" }`
  */
 var LOCALE_OVERRIDES = {};
 
@@ -107,7 +104,7 @@ var MESSAGES = {
     home: {
       tagline: "¿Contenido o remitente sospechoso? Repórtalo para un análisis más detallado.",
       reportButton: "Reportar correo",
-      onboardingButton: "Tutorial de introducción",
+      onboardingButton: "Tutorial de inicio",
     },
     error: {
       generic: "Se produjo un error al completar tu acción. Para escalar el caso o una resolución más rápida, contáctanos en support@cybernut.com",
@@ -245,42 +242,12 @@ function localeLabel(code) {
 }
 
 /**
- * Country of the flag to fly. A language is not a country, so this is CLDR's
- * "most likely region" for the tag (`maximize()`), exactly as the portal does
- * it; a tag that already names a region (`pt-BR`) keeps it. Only a two-letter
- * region is a country: `eo` maximizes to `001`, the world, which flies no
- * flag. Empty when unknown.
+ * What a dropdown row shows: the language code, as the portal's picker badges
+ * it, then the native name, e.g. "【ES】 Español". CardService dropdown items
+ * are plain text, so lenticular brackets stand in for the portal's pill.
  */
-function localeCountry(code) {
-  var override = localeOverride(code);
-  if (override && override.country !== undefined) return override.country || "";
-  try {
-    var region = new Intl.Locale(code).maximize().region;
-    if (region && /^[A-Za-z]{2}$/.test(region)) return region.toUpperCase();
-  } catch (err) {
-    console.log("localeCountry|Intl.Locale unavailable|", { code: code, error: err.message });
-  }
-  return "";
-}
-
-/**
- * Flag emoji for the locale's country, built from the two regional-indicator
- * symbols (`US` -> 🇺🇸). CardService dropdown items are plain text, so an
- * emoji is the only way to show a flag there; Gmail renders it as an image on
- * web, Android and iOS. Windows has no flag glyphs and shows the two letters
- * instead, which still reads fine. Empty when there is no country.
- */
-function localeFlag(code) {
-  var country = localeCountry(code);
-  if (!/^[A-Z]{2}$/.test(country)) return "";
-  var base = 0x1f1e6 - 65; // regional indicator A minus "A"
-  return String.fromCodePoint(base + country.charCodeAt(0), base + country.charCodeAt(1));
-}
-
-/** What a dropdown row shows: flag then native name, e.g. "🇪🇸 Español". */
 function localeOptionLabel(code) {
-  var flag = localeFlag(code);
-  return flag ? flag + " " + localeLabel(code) : localeLabel(code);
+  return "【" + code.toUpperCase() + "】 " + localeLabel(code);
 }
 
 function localeDirection(code) {
@@ -306,8 +273,6 @@ function debugLocaleDerivation(codes) {
   (codes || shippedLocales()).forEach(function (code) {
     console.log(code, {
       label: localeLabel(code),
-      country: localeCountry(code),
-      flag: localeFlag(code),
       direction: localeDirection(code),
       option: localeOptionLabel(code),
       hasCatalogue: catalogueFor(code) !== null,

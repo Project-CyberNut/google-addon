@@ -6,7 +6,8 @@
  *
  * Writes dist/<env>/ containing:
  *   - Code.gs         all *.gs sources merged into one file, build constants
- *                     (BUILD_ENV, BUILD_VERSION, BUILD_COMMIT, BUILD_TIME) first,
+ *                     (BUILD_ENV, BUILD_VERSION from package.json, BUILD_COMMIT,
+ *                     BUILD_TIME) first,
  *                     then env.gs, then the rest. Apps Script files share one
  *                     global scope, so one file behaves exactly like many; it is
  *                     just easier to paste, diff and review in the editor.
@@ -77,10 +78,10 @@ const found = fs.readdirSync(ROOT).filter((f) => f.endsWith(".gs")).sort();
 const sources = [...SOURCE_ORDER.filter((f) => found.includes(f)), ...found.filter((f) => !SOURCE_ORDER.includes(f))];
 
 // 2. build constants
-const version = (fs.readFileSync(path.join(ROOT, "code.gs"), "utf8").match(/var version = "([^"]+)"/) || [])[1] || "unknown";
+const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const build = {
   BUILD_ENV: target,
-  BUILD_VERSION: version,
+  BUILD_VERSION: "v " + (pkg.version || "unknown"),
   BUILD_COMMIT: git("rev-parse --short HEAD", "unknown"),
   BUILD_BRANCH: git("rev-parse --abbrev-ref HEAD", "unknown"),
   BUILD_TIME: new Date().toISOString(),

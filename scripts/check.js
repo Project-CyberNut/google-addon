@@ -59,6 +59,8 @@ if (loaded) {
     const keys = new Set(flat(sandbox.MESSAGES[code]));
     for (const k of en) if (!keys.has(k)) fail(`MESSAGES.${code}: missing key ${k}`);
     for (const k of keys) if (!en.has(k)) fail(`MESSAGES.${code}: key ${k} not in en`);
+    const pad = sandbox.VERSION_FOOTER_PADDING[sandbox.baseLanguage(code)];
+    if (!pad || !Number.isInteger(pad.nbsp) || !Number.isInteger(pad.thin)) fail(`MESSAGES.${code}: no VERSION_FOOTER_PADDING entry in code.gs`);
   }
   const used = new Set();
   for (const f of sources) for (const m of read(f).matchAll(/\bt\("([^"]+)"/g)) used.add(m[1]);

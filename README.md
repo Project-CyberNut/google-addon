@@ -80,7 +80,7 @@ For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
 
    | Property | Required | Value |
    | --- | --- | --- |
-   | `ADDON_ENV` | no | `prod` (default) or `dev`. Selects every environment-specific value: API Gateway ids, telemetry host, training and portal hosts, unification base URLs and the card heading. See `env.gs`. `UNIFICATION_ENV` is accepted as a legacy alias. |
+   | `ADDON_ENV` | no | `prod` (default) or `dev`. Selects every environment-specific value: API Gateway ids, telemetry host, training and portal hosts and unification base URLs. See `env.gs`. `UNIFICATION_ENV` is accepted as a legacy alias. |
 
 5. **Deploy as a test add-on**: create a Head deployment, install it under
    Gmail → Settings → Add-ons using the deployment ID, reload Gmail.
@@ -92,7 +92,7 @@ under `ENVIRONMENTS.prod` and `ENVIRONMENTS.dev`, and the Script Property
 `ADDON_ENV` picks one. Nothing in `code.gs`, `i18n.gs` or `languageApi.gs`
 names a host directly.
 
-Per environment: card heading, telemetry host (route is
+Per environment: telemetry host (route is
 `microsoftaddinactivitynew` in both), user-region host, per-region API Gateway
 ids (verify / admin / service), training portal host (used for the v2 report
 redirect, the onboarding link and the body-link check), legacy report portal
@@ -115,16 +115,16 @@ the add-on opens the training portal in Spanish and vice versa.
 **Backend routes** (unification platform, public, no key):
 
 ```
-GET   /public/users/preferred-language?domain=acme.org&email=jane@acme.org
+GET   /public/users/preferences?domain=acme.org&email=jane@acme.org
       -> { data: { preferredLanguage: "es" | null, supportedLanguages: ["en","es"] } }
 PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
 ```
 
 **Which languages the dropdown offers**: exactly the account's supported
-list from the preferred-language GET, in the backend's order,
+list from the preferences GET, in the backend's order,
 using the backend's codes. Admins add or remove languages there; nothing in
-the add-on changes. Name and flag for each option are derived from the code
-(`Intl.DisplayNames`, `Intl.Locale#maximize`). If fewer than two remain,
+the add-on changes. Each option shows the code in capitals and the native
+name derived from it (`Intl.DisplayNames`), e.g. `【ES】 Español`. If fewer than two remain,
 the dropdown is hidden and that one language is used. If the list cannot be
 read at all (unknown domain, network), the dropdown is hidden
 and the card stays in English; the backend is the only source of the offer.
@@ -141,7 +141,7 @@ account, then the home card is redrawn. A failed PATCH still switches the UI
 and shows a "could not save" toast.
 
 **No caching**: every time the add-on renders a card it calls the region
-lookup and the preferred-language GET, so a change made
+lookup and the preferences GET, so a change made
 by an admin or in the portal shows up the next time the add-on is opened.
 The user's last explicit choice in the add-on is kept as a user property,
 used only when the account has no stored preference.
@@ -154,8 +154,8 @@ is logged). To translate it, add a catalogue under `MESSAGES[code]` in
 `i18n.gs` with the same keys as `en`. Region tags fall back to their base
 language (`pt-BR` uses `pt`). A missing key falls back to English.
 
-If CLDR's derived name, flag or direction is not the one wanted, add an entry
-to `LOCALE_OVERRIDES`, e.g. `"es": { country: "MX" }`. Run
+If CLDR's derived name or direction is not the one wanted, add an entry
+to `LOCALE_OVERRIDES`, e.g. `"pt": { label: "Português" }`. Run
 `debugLocaleDerivation(["en", "fr", "pt-BR"])` in the Apps Script editor to
 see what the runtime derives for any codes.
 

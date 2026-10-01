@@ -6,7 +6,7 @@
  * service key. They resolve the tenant from the account `domain` (derived
  * from the user's email).
  *
- *   GET   /public/users/preferred-language?domain=acme.org&email=jane@acme.org
+ *   GET   /public/users/preferences?domain=acme.org&email=jane@acme.org
  *         -> { success, data: { preferredLanguage: "es" | null,
  *                               supportedLanguages: ["en", "es"] } }
  *   PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
@@ -15,6 +15,7 @@
  * Base URLs per environment come from env.gs.
  */
 
+var USER_PREFERENCES_PATH = "/public/users/preferences";
 var PREFERRED_LANGUAGE_PATH = "/public/users/preferred-language";
 
 var JSON_HEADERS = { "Content-Type": "application/json" };
@@ -73,7 +74,7 @@ function getLanguagePreference(identity) {
     console.log("getLanguagePreference|skipped|no email or memberId");
     return null;
   }
-  var url = unificationBase(identity.region) + PREFERRED_LANGUAGE_PATH + "?" + query;
+  var url = unificationBase(identity.region) + USER_PREFERENCES_PATH + "?" + query;
   console.log("getLanguagePreference|called|", { url: url });
   try {
     var res = UrlFetchApp.fetch(url, { method: "get", headers: JSON_HEADERS, muteHttpExceptions: true });
@@ -177,7 +178,7 @@ function debugLanguageApi() {
   }
 
   var identity = "domain=" + encodeURIComponent(domain) + "&email=" + encodeURIComponent(email);
-  var pref = call("preferred-language GET", "get", base + PREFERRED_LANGUAGE_PATH + "?" + identity);
+  var pref = call("preferences GET", "get", base + USER_PREFERENCES_PATH + "?" + identity);
   var current = "en";
   try { current = JSON.parse(pref.getContentText()).data.preferredLanguage || "en"; } catch (err) {}
   call("preferred-language PATCH", "patch", base + PREFERRED_LANGUAGE_PATH + "?" + identity + "&lang=" + encodeURIComponent(current));

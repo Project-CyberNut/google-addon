@@ -24,8 +24,6 @@
 
 var ENVIRONMENTS = {
   prod: {
-    /** Heading on every card; the manifest name for this env is "CyberNut Reporting Tool". */
-    heading: "Cybernut Reporting Tool",
     /** Telemetry (callErrorReportingApi). Route is microsoftaddinactivitynew in both envs. */
     telemetryHost: "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com",
     /** Domain -> AWS region lookup. */
@@ -49,7 +47,6 @@ var ENVIRONMENTS = {
   },
 
   dev: {
-    heading: "Cybernut Reporting Tool (Dev)",
     telemetryHost: "https://rhqh5ihdvj.execute-api.us-east-1.amazonaws.com",
     userRegionHost: "https://rg0w8yelb6.execute-api.us-east-1.amazonaws.com",
     regions: {

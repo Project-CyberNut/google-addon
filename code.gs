@@ -1,11 +1,5 @@
-var version = "v 2.5.0"
-
-/** Product name is a brand; only the surrounding copy is translated. Env-specific (env.gs). */
-function headingWidget() {
-  return CardService.newTextParagraph().setText(
-    `<b>${env().heading}</b>  ${version}`
-  );
-}
+// Set by scripts/build.js from package.json; the bare sources are never deployed.
+var version = typeof BUILD_VERSION === "string" ? BUILD_VERSION : "v dev"
 
 function alreadyClickedHeadingWidget() {
   return CardService.newTextParagraph().setText(t("step1.waitHeading"));
@@ -368,15 +362,62 @@ function buildErrorCard(code, params) {
   return cardBuilder.build();
 }
 
+/**
+ * Invisible padding after the footer's version label, per catalogue, so the
+ * version text sits ~37px from the card's left edge in every language.
+ * Gmail keeps both footer buttons together on the right and CardService has no
+ * alignment setting, so the padding widens the version button leftwards
+ * instead; one step too many wraps the version onto its own line. It is built
+ * from no-break spaces (3.9px at the sidebar's 14px Arial) and thin spaces
+ * (2.8px) for the last few px. The room depends on the onboarding label's
+ * width, so each entry is measured in the Gmail web sidebar:
+ *   en  "Onboarding Tutorial"  label 121px  -> 4 + 1 thin, text at ~37px
+ *   es  "Tutorial de inicio"   label ~100px -> 9 + 1 thin, text at ~39px
+ *   ar  "الدرس التمهيدي"       label 69px   -> 18,         text at ~38px
+ * The label plus padding must stay under ~140px, or the row wraps even with
+ * no padding ("Tutorial de introducción" was 143px). A new catalogue or label
+ * needs an entry here (scripts/check.js enforces one).
+ */
+var VERSION_FOOTER_PADDING = {
+  en: { nbsp: 4, thin: 1 },
+  es: { nbsp: 9, thin: 1 },
+  ar: { nbsp: 18, thin: 0 },
+};
+
+/** Padding for the catalogue the onboarding label renders from: English when we ship no copy for the language. */
+function versionFooterPadding() {
+  var lang = catalogueFor(currentLang()) ? baseLanguage(currentLang()) : DEFAULT_LOCALE;
+  var pad = VERSION_FOOTER_PADDING[lang] || { nbsp: 0, thin: 0 };
+  return "\u00a0".repeat(pad.nbsp) + "\u2009".repeat(pad.thin);
+}
+
+/**
+ * Onboarding button, with the add-on version at the far left. A fixed footer
+ * only holds buttons, so the version is a disabled borderless secondary button.
+ * The word joiner (U+2060) ends the label so a trim cannot strip the padding.
+ */
 function onboardingFooter() {
-  return CardService.newFixedFooter().setPrimaryButton(
-    CardService.newTextButton()
-      .setText(t("home.onboardingButton"))
-      .setDisabled(false)
-      .setOnClickAction(
-        CardService.newAction().setFunctionName("openLearnAddonLink")
-      )
-  );
+  return CardService.newFixedFooter()
+    .setPrimaryButton(
+      CardService.newTextButton()
+        .setText(t("home.onboardingButton"))
+        .setDisabled(false)
+        .setOnClickAction(
+          CardService.newAction().setFunctionName("openLearnAddonLink")
+        )
+    )
+    .setSecondaryButton(
+      CardService.newTextButton()
+        .setText(version + versionFooterPadding() + "\u2060")
+        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
+        .setDisabled(true)
+        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
+    );
+}
+
+/** Buttons need an action even when disabled; this one does nothing. */
+function noopAction() {
+  return CardService.newActionResponseBuilder().build();
 }
 
 /**
@@ -404,7 +445,6 @@ async function buildHomeCard(e) {
     CardService.newCardSection()
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
-      .addWidget(headingWidget())
       .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
   );
 
@@ -690,7 +730,6 @@ async function handleStep2(e) {
     var section = CardService.newCardSection()
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
-      .addWidget(headingWidget())
       .addWidget(CardService.newTextParagraph().setText(
         suspiciousEmailResponse.CONFIRMATION_MESSAGE
           ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
