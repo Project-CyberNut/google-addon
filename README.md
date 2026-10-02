@@ -117,7 +117,7 @@ the add-on opens the training portal in Spanish and vice versa.
 ```
 GET   /public/users/preferences?domain=acme.org&email=jane@acme.org
       -> { data: { preferredLanguage: "es" | null, supportedLanguages: ["en","es"] } }
-PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
+PATCH /public/users/preferences?domain=acme.org&email=jane@acme.org&lang=es
 ```
 
 **Which languages the dropdown offers**: exactly the account's supported

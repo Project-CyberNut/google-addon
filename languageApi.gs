@@ -4,19 +4,19 @@
  * Mirrors the training portal so the add-on and the portal read and write
  * the same stored preference. Both routes are public: no user JWT and no
  * service key. They resolve the tenant from the account `domain` (derived
- * from the user's email).
+ * from the user's email). Reads and writes share one path, renamed from
+ * /public/users/preferred-language.
  *
  *   GET   /public/users/preferences?domain=acme.org&email=jane@acme.org
  *         -> { success, data: { preferredLanguage: "es" | null,
  *                               supportedLanguages: ["en", "es"] } }
- *   PATCH /public/users/preferred-language?domain=acme.org&email=jane@acme.org&lang=es
+ *   PATCH /public/users/preferences?domain=acme.org&email=jane@acme.org&lang=es
  *         -> 200, or 400 when `lang` is not in the account's supported list
  *
  * Base URLs per environment come from env.gs.
  */
 
 var USER_PREFERENCES_PATH = "/public/users/preferences";
-var PREFERRED_LANGUAGE_PATH = "/public/users/preferred-language";
 
 var JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -118,7 +118,7 @@ function setPreferredLanguage(identity, lang) {
     console.log("setPreferredLanguage|skipped|no email or memberId");
     return false;
   }
-  var url = unificationBase(identity.region) + PREFERRED_LANGUAGE_PATH + "?" + query +
+  var url = unificationBase(identity.region) + USER_PREFERENCES_PATH + "?" + query +
     "&lang=" + encodeURIComponent(lang);
   console.log("setPreferredLanguage|called|", { url: url });
   try {
@@ -181,5 +181,5 @@ function debugLanguageApi() {
   var pref = call("preferences GET", "get", base + USER_PREFERENCES_PATH + "?" + identity);
   var current = "en";
   try { current = JSON.parse(pref.getContentText()).data.preferredLanguage || "en"; } catch (err) {}
-  call("preferred-language PATCH", "patch", base + PREFERRED_LANGUAGE_PATH + "?" + identity + "&lang=" + encodeURIComponent(current));
+  call("preferences PATCH", "patch", base + USER_PREFERENCES_PATH + "?" + identity + "&lang=" + encodeURIComponent(current));
 }
