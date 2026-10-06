@@ -63,9 +63,12 @@ jobs:
         working-directory: dist/${{ env.TARGET }}
         run: clasp push --force
 
-      # Prod only: move the published deployment to the code just pushed.
-      # Skipped when no deployment id is configured (head deployment updates by itself).
+      # Move the environment's published deployment to the code just pushed.
+      # Skipped when DEPLOYMENT_ID_<ENV> is not set: the head deployment (used by
+      # "test deployments" in Gmail) always reflects the pushed code anyway.
       - name: Update deployment
-        if: env.TARGET == 'prod' && vars.DEPLOYMENT_ID_PROD != ''
+        env:
+          DEPLOYMENT_ID: ${{ env.TARGET == 'prod' && vars.DEPLOYMENT_ID_PROD || vars.DEPLOYMENT_ID_DEV }}
+        if: env.DEPLOYMENT_ID != ''
         working-directory: dist/${{ env.TARGET }}
-        run: clasp deploy --deploymentId "${{ vars.DEPLOYMENT_ID_PROD }}" --description "${{ github.sha }}"
+        run: clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "${{ github.sha }}"
