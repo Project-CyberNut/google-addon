@@ -56,8 +56,10 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
    account-like shared account rather than a personal one.
 3. Repository variables: `SCRIPT_ID_DEV` and `SCRIPT_ID_PROD` (the id in each
    project's URL, `script.google.com/.../projects/<id>/edit`). Optional:
-   `DEPLOYMENT_ID_PROD` so a push to main also moves the published deployment
-   to the new code; without it, pushes update the head deployment only.
+   `DEPLOYMENT_ID_DEV` / `DEPLOYMENT_ID_PROD` so a push also moves that
+   environment's published deployment to the new code; without one, the push
+   updates the head deployment only (which is what a Gmail test deployment
+   installed from the editor already uses).
 4. Create two GitHub environments named `dev` and `prod` (Settings ->
    Environments). Add required reviewers to `prod` if you want a manual
    approval before production pushes.
