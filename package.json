@@ -1,6 +1,6 @@
 {
   "name": "cybernut-gmail-addon",
-  "version": "2.5.0",
+  "version": "2.5.5",
   "private": true,
   "description": "CyberNut Reporting Tool - Gmail add-on (Google Apps Script)",
   "engines": {
