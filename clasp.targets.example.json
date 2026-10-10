@@ -1,0 +1,4 @@
+{
+  "dev":  { "scriptId": "PASTE_DEV_SCRIPT_ID_HERE" },
+  "prod": { "scriptId": "PASTE_PROD_SCRIPT_ID_HERE" }
+}
