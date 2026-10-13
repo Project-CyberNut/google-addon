@@ -86,7 +86,6 @@ var MESSAGES = {
       },
     },
     step2: {
-      defaultConfirmation: "Thank you, you will hear back from IT if you need to take any further action.",
       movedToTrash: "Email moved to trash. Please refresh your Gmail view.",
     },
     language: {
@@ -126,7 +125,6 @@ var MESSAGES = {
       },
     },
     step2: {
-      defaultConfirmation: "Gracias. El equipo de TI se comunicará contigo si necesitas tomar alguna otra medida.",
       movedToTrash: "El correo se movió a la papelera. Actualiza tu vista de Gmail.",
     },
     language: {
@@ -166,7 +164,6 @@ var MESSAGES = {
       },
     },
     step2: {
-      defaultConfirmation: "شكرًا لك، سيتواصل معك قسم تقنية المعلومات إذا كان عليك اتخاذ أي إجراء إضافي.",
       movedToTrash: "تم نقل البريد الإلكتروني إلى سلة المهملات. يرجى تحديث صفحة Gmail.",
     },
     language: {

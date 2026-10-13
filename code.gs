@@ -334,6 +334,12 @@ async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
 
 let adminMessageForThirdStep = "";
 
+// Shown when the tenant has saved no confirmation message. It is the text the
+// admin portal shows in that case, and like the admin's own message it is not
+// translated, so the user reads exactly what the portal shows.
+const DEFAULT_CONFIRMATION_MESSAGE =
+  "Thank you for reporting. CyberNut is thankful that you are being a vigilant team member by reporting suspicious senders!";
+
 /**
  * Uses whatever locale the entry point resolved (English before any did).
  *
@@ -733,7 +739,7 @@ async function handleStep2(e) {
       .addWidget(CardService.newTextParagraph().setText(
         suspiciousEmailResponse.CONFIRMATION_MESSAGE
           ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          : t("step2.defaultConfirmation")
+          : DEFAULT_CONFIRMATION_MESSAGE
       ));
 
     let isVerifiedDomain = false;
