@@ -168,7 +168,6 @@ function cybernutDomains(senderDomain) {
     'meta-alerts.com',
     'google-notice.com',
     'instagram-services.com',
-    'cybernut-k12.com',
     'tiktok-teams.com',
     'hulu-connect.com',
     'netflix-updates.com',
