@@ -456,22 +456,6 @@ async function buildHomeCard(e) {
   return builder.build();
 }
 
-/**
- * Minimal card for messages that sit in Spam. Gmail refuses contextual content
- * and actions for spam and shows its own "can't be used for recommended content"
- * toast; the dismissed toast leaves an invisible layer over the bottom of the
- * panel that swallows clicks on the fixed footer. So no footer and no report
- * button here: there is nothing at the bottom for that layer to cover.
- */
-function buildSpamCard() {
-  return CardService.newCardBuilder()
-    .addSection(
-      CardService.newCardSection()
-        .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
-    )
-    .build();
-}
-
 async function HomePage(e) {
   console.log('HomePage|called!');
   try {
@@ -480,10 +464,6 @@ async function HomePage(e) {
     if (e.gmail) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
-      if (mailMessage.getThread().isInSpam()) {
-        console.log('HomePage|spam message|returning minimal card');
-        return buildSpamCard();
-      }
       let bodyHtml = mailMessage.getBody();
       await callErrorReportingApi("Home function run perfectly", bodyHtml);
     } else {
