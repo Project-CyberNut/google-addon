@@ -55,9 +55,12 @@ async function region(domainNameTo) {
 
     const content = res.getContentText();
     const jsonResponse = JSON.parse(content);
-    console.log('region|result|', { aws_region: jsonResponse.aws_region, statusCode });
+    // Every caller (verify, admin, service, unification, portal links) reads
+    // the region from here, so an environment without it falls back once.
+    const awsRegion = envRegion(jsonResponse.aws_region);
+    console.log('region|result|', { aws_region: jsonResponse.aws_region, using: awsRegion, statusCode });
     return {
-      aws_region: jsonResponse.aws_region,
+      aws_region: awsRegion,
       status_code: statusCode,
     };
   } catch (error) {

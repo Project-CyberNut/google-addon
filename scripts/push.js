@@ -3,7 +3,7 @@
  * Build one environment and clasp-push it, failing early with a clear message
  * when the script id or the clasp login is missing.
  *
- *   node scripts/push.js dev|prod
+ *   node scripts/push.js dev|prod|stage
  */
 "use strict";
 const fs = require("fs");
@@ -13,8 +13,8 @@ const { spawnSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const target = (process.argv[2] || "").toLowerCase();
-if (!["dev", "prod"].includes(target)) {
-  console.error("usage: node scripts/push.js dev|prod");
+if (!["dev", "prod", "stage"].includes(target)) {
+  console.error("usage: node scripts/push.js dev|prod|stage");
   process.exit(2);
 }
 

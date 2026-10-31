@@ -1,0 +1,55 @@
+{
+  "timeZone": "America/New_York",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/gmail.modify"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Cybernut Stage",
+      "logoUrl": "https://addin.cybernut.com/assets/squirrel-32.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "HomePage",
+        "enabled": true
+      },
+      "layoutProperties": {
+        "primaryColor": "#354CF0",
+        "secondaryColor": "#354CF0"
+      }
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "HomePage"
+        }
+      ]
+    }
+  },
+  "urlFetchWhitelist": [
+    "https://w3afzt5i97.execute-api.us-east-1.amazonaws.com/userregion",
+    "https://6nl6ant4m6.execute-api.us-east-1.amazonaws.com/microsoftaddinactivitynew",
+    "https://w3afzt5i97.execute-api.us-east-1.amazonaws.com/admindomainsgoogle",
+    "https://w3afzt5i97.execute-api.us-east-1.amazonaws.com/campaignversion",
+    "https://6p0svikd03.execute-api.us-east-1.amazonaws.com/getemail",
+    "https://6nl6ant4m6.execute-api.us-east-1.amazonaws.com/eventdispatcher",
+    "https://qa-us-east-1.cybernut.ai/api/v1/public/",
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages?q=in:inbox"
+  ],
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Gmail",
+        "version": "v1",
+        "serviceId": "gmail"
+      }
+    ]
+  }
+}

@@ -10,8 +10,10 @@
     "test": "node scripts/check.js",
     "build": "node scripts/build.js",
     "build:dev": "node scripts/build.js dev",
+    "build:stage": "node scripts/build.js stage",
     "build:prod": "node scripts/build.js prod",
     "push:dev": "node scripts/push.js dev",
+    "push:stage": "node scripts/push.js stage",
     "push:prod": "node scripts/push.js prod"
   }
 }

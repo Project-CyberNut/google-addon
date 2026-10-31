@@ -3,14 +3,14 @@ name: Apps Script
 on:
   pull_request:
   push:
-    branches: [dev, main]
+    branches: [dev, stage, main]
   # Manual run from any branch, e.g. to test the pipeline before merging.
   workflow_dispatch:
     inputs:
       target:
         description: Environment to push to
         type: choice
-        options: [dev, prod]
+        options: [dev, stage, prod]
         default: dev
 
 concurrency:
@@ -27,16 +27,16 @@ jobs:
         with:
           node-version: 20
       - run: npm test
-      - run: npm run build:dev && npm run build:prod
+      - run: npm run build:dev && npm run build:stage && npm run build:prod
 
   push:
-    name: Push to ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || 'dev') }}
+    name: Push to ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
     needs: check
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || 'dev') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
     env:
-      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || 'dev') }}
+      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,6 +47,7 @@ jobs:
       - name: Build
         env:
           SCRIPT_ID_DEV: ${{ vars.SCRIPT_ID_DEV }}
+          SCRIPT_ID_STAGE: ${{ vars.SCRIPT_ID_STAGE }}
           SCRIPT_ID_PROD: ${{ vars.SCRIPT_ID_PROD }}
         run: |
           npm run build -- "$TARGET"
@@ -66,9 +67,15 @@ jobs:
       # Move the environment's published deployment to the code just pushed.
       # Skipped when DEPLOYMENT_ID_<ENV> is not set: the head deployment (used by
       # "test deployments" in Gmail) always reflects the pushed code anyway.
+      # Picked in shell like SCRIPT_ID_<ENV>: an `a && b || c` expression would
+      # fall through to the dev id when the target's own id is unset.
       - name: Update deployment
         env:
-          DEPLOYMENT_ID: ${{ env.TARGET == 'prod' && vars.DEPLOYMENT_ID_PROD || vars.DEPLOYMENT_ID_DEV }}
-        if: env.DEPLOYMENT_ID != ''
+          DEPLOYMENT_ID_DEV: ${{ vars.DEPLOYMENT_ID_DEV }}
+          DEPLOYMENT_ID_STAGE: ${{ vars.DEPLOYMENT_ID_STAGE }}
+          DEPLOYMENT_ID_PROD: ${{ vars.DEPLOYMENT_ID_PROD }}
         working-directory: dist/${{ env.TARGET }}
-        run: clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "${{ github.sha }}"
+        run: |
+          var="DEPLOYMENT_ID_${TARGET^^}"
+          if [ -z "${!var}" ]; then echo "$var is not set; head deployment only"; exit 0; fi
+          clasp deploy --deploymentId "${!var}" --description "${{ github.sha }}"

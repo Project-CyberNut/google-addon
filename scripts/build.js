@@ -2,7 +2,7 @@
 /**
  * Assemble a deployable Apps Script project for one environment.
  *
- *   node scripts/build.js dev|prod [--separate]
+ *   node scripts/build.js dev|prod|stage [--separate]
  *
  * Writes dist/<env>/ containing:
  *   - Code.gs         all *.gs sources merged into one file, build constants
@@ -26,13 +26,13 @@ const { execSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const MANIFEST_TEMPLATE = path.join(ROOT, "Appscript.json");
-const ADDON_NAMES = { prod: "CyberNut Reporting Tool", dev: "Cybernut Dev" };
+const ADDON_NAMES = { prod: "CyberNut Reporting Tool", dev: "Cybernut Dev", stage: "Cybernut Stage" };
 
 const args = process.argv.slice(2);
 const separate = args.includes("--separate");
 const target = (args.find((a) => !a.startsWith("--")) || "").toLowerCase();
 if (!ADDON_NAMES[target]) {
-  console.error("usage: node scripts/build.js dev|prod [--separate]");
+  console.error("usage: node scripts/build.js dev|prod|stage [--separate]");
   process.exit(2);
 }
 

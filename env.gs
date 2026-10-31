@@ -9,7 +9,7 @@
  * Which environment runs: a project built by scripts/build.js carries
  * BUILD_ENV in build.gs, and that decides. A project pasted in by hand uses
  * the Script Property `ADDON_ENV` (Apps Script editor -> Project Settings ->
- * Script Properties): "prod" or "dev"; unset means prod. `UNIFICATION_ENV`
+ * Script Properties): "prod", "stage" or "dev"; unset means prod. `UNIFICATION_ENV`
  * is honoured as a legacy alias.
  *
  * The add-on name in the manifest (`addOns.common.name`) cannot be read from
@@ -45,6 +45,22 @@ var ENVIRONMENTS = {
       "eu-central-1":   "https://prod-eu-central-1.cybernut.ai/api/v1",
     },
   },
+  /**
+   * Ids from the portal's .env.stage. Stage runs in us-east-1 only, so
+   * envRegion() sends every domain there whatever region it is in.
+   */
+  stage: {
+    telemetryHost: "https://6nl6ant4m6.execute-api.us-east-1.amazonaws.com",
+    userRegionHost: "https://w3afzt5i97.execute-api.us-east-1.amazonaws.com",
+    regions: {
+      "us-east-1":      { verifyUrl: "w3afzt5i97", adminUrl: "6p0svikd03", serviceUrl: "6nl6ant4m6" },
+    },
+    trainingHost: "stage-training.cybernut.com",
+    portalHost: "userportalstage.cybernut-k12.com",
+    unification: {
+      "us-east-1":      "https://qa-us-east-1.cybernut.ai/api/v1",
+    },
+  },
 
   dev: {
     telemetryHost: "https://rhqh5ihdvj.execute-api.us-east-1.amazonaws.com",
@@ -70,7 +86,7 @@ var DEFAULT_ENV = "prod";
 var currentEnvMemo = null;
 
 /**
- * "prod" or "dev". A built project (scripts/build.js) carries BUILD_ENV in
+ * "prod", "stage" or "dev". A built project (scripts/build.js) carries BUILD_ENV in
  * build.gs and that wins, so a deployment can never run against the wrong
  * backend because of a property. A project pasted in by hand has no
  * build.gs and falls back to the Script Property; unknown or unset -> prod.
@@ -100,6 +116,14 @@ function env() {
     console.log("env|", { name: name });
   }
   return currentEnvMemo;
+}
+
+/**
+ * The region to call for a domain: its own when the active environment runs
+ * there, else us-east-1 (stage runs nowhere else).
+ */
+function envRegion(reg) {
+  return env().regions[reg] ? reg : "us-east-1";
 }
 
 /**
