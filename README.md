@@ -11,23 +11,25 @@ user's CyberNut account.
 | --- | --- |
 | `Appscript.json` | Manifest template: scopes, triggers, whitelist. The build writes it out as `appsscript.json` per environment with the name and whitelist filled in. If pasting by hand, rename it to `appsscript.json`. |
 | `scripts/build.js`, `scripts/check.js` | Build one environment into `dist/<env>/`; pre-push checks. |
-| `.github/workflows/deploy.yml` | CI: checks on pull requests; build and `clasp push` on merges to `dev` and `main`. |
-| `env.gs` | Prod and dev configuration: every URL, API Gateway id and label that differs between environments, selected by `ADDON_ENV`. |
+| `.github/workflows/deploy.yml` | CI: checks on pull requests; build and `clasp push` on merges to `dev`, `stage` and `main`. |
+| `env.gs` | Prod, stage and dev configuration: every URL, API Gateway id and label that differs between environments, selected by `ADDON_ENV`. |
 | `code.gs` | Report flow: home card, step 1 (what did you click), step 2 (forward to IT). |
 | `i18n.gs` | Locale registry, message catalogues, locale resolution, language dropdown. |
 | `languageApi.gs` | Unification-platform language routes (supported / preferred language). |
 
 ## Build and deploy
 
-One code base, two Apps Script projects (dev and prod). `scripts/build.js`
+One code base, three Apps Script projects (dev, stage and prod). `scripts/build.js`
 assembles a deployable folder per environment and `clasp` pushes it; GitHub
 Actions does both on every merge.
 
 ```bash
 npm test              # syntax, catalogue parity, no hard-coded hosts, whitelist coverage
-npm run build:dev     # -> dist/dev   (build.gs with BUILD_ENV="dev",  manifest named "Cybernut Dev")
-npm run build:prod    # -> dist/prod  (build.gs with BUILD_ENV="prod", manifest named "CyberNut Reporting Tool")
+npm run build:dev     # -> dist/dev   (build.gs with BUILD_ENV="dev",   manifest named "Cybernut Dev")
+npm run build:stage   # -> dist/stage (build.gs with BUILD_ENV="stage", manifest named "Cybernut Stage")
+npm run build:prod    # -> dist/prod  (build.gs with BUILD_ENV="prod",  manifest named "CyberNut Reporting Tool")
 npm run push:dev      # build + clasp push to the dev project (needs clasp login + script id)
+npm run push:stage
 npm run push:prod
 ```
 
@@ -37,14 +39,14 @@ this is behaviour-identical and easier to paste and review), and generates
 `appsscript.json` from `Appscript.json` with the add-on name set and
 `urlFetchWhitelist` regenerated from `env.gs`. A built project decides its
 environment from the baked-in `BUILD_ENV`, so no `ADDON_ENV` property is
-needed in either project. Pass `--separate` to keep one file per source.
+needed in any project. Pass `--separate` to keep one file per source.
 
 **If you paste by hand**: build, then paste `dist/<env>/Code.gs` and
 `dist/<env>/appsscript.json` into the Apps Script project. Two files, done.
 
-**Branches -> environments**: merging to `dev` pushes to the dev project;
-merging to `main` pushes to the prod project. Pull requests run the checks and
-both builds without pushing. See `.github/workflows/deploy.yml`.
+**Branches -> environments**: merging to `dev` pushes to the dev project,
+`stage` to the stage project and `main` to the prod project. Pull requests run
+the checks and all three builds without pushing. See `.github/workflows/deploy.yml`.
 
 **One-time setup**
 
@@ -52,15 +54,15 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
    script.google.com/home/usersettings.
 2. Locally: `clasp login`, then copy `~/.clasprc.json` into the GitHub secret
    `CLASPRC_JSON` (Settings -> Secrets and variables -> Actions). Use an
-   account with edit access to both Apps Script projects, ideally a service
+   account with edit access to all three Apps Script projects, ideally a service
    account-like shared account rather than a personal one.
-3. Repository variables: `SCRIPT_ID_DEV` and `SCRIPT_ID_PROD` (the id in each
+3. Repository variables: `SCRIPT_ID_DEV`, `SCRIPT_ID_STAGE` and `SCRIPT_ID_PROD` (the id in each
    project's URL, `script.google.com/.../projects/<id>/edit`). Optional:
-   `DEPLOYMENT_ID_DEV` / `DEPLOYMENT_ID_PROD` so a push also moves that
+   `DEPLOYMENT_ID_DEV` / `DEPLOYMENT_ID_STAGE` / `DEPLOYMENT_ID_PROD` so a push also moves that
    environment's published deployment to the new code; without one, the push
    updates the head deployment only (which is what a Gmail test deployment
    installed from the editor already uses).
-4. Create two GitHub environments named `dev` and `prod` (Settings ->
+4. Create three GitHub environments named `dev`, `stage` and `prod` (Settings ->
    Environments). Add required reviewers to `prod` if you want a manual
    approval before production pushes.
 5. Nothing else: the language routes need no key, and a built project
@@ -68,7 +70,7 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
 
 For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
 (git-ignored) and fill in the script ids, or export `SCRIPT_ID_DEV` /
-`SCRIPT_ID_PROD`.
+`SCRIPT_ID_STAGE` / `SCRIPT_ID_PROD`.
 
 ## Setup (manual, without the pipeline)
 
@@ -82,28 +84,30 @@ For local pushes, copy `clasp.targets.example.json` to `clasp.targets.json`
 
    | Property | Required | Value |
    | --- | --- | --- |
-   | `ADDON_ENV` | no | `prod` (default) or `dev`. Selects every environment-specific value: API Gateway ids, telemetry host, training and portal hosts and unification base URLs. See `env.gs`. `UNIFICATION_ENV` is accepted as a legacy alias. |
+   | `ADDON_ENV` | no | `prod` (default), `stage` or `dev`. Selects every environment-specific value: API Gateway ids, telemetry host, training and portal hosts and unification base URLs. See `env.gs`. `UNIFICATION_ENV` is accepted as a legacy alias. |
 
 5. **Deploy as a test add-on**: create a Head deployment, install it under
    Gmail → Settings → Add-ons using the deployment ID, reload Gmail.
 
 ## Environments
 
-Prod and dev run the same code. Everything that differs lives in `env.gs`
-under `ENVIRONMENTS.prod` and `ENVIRONMENTS.dev`, and the Script Property
+Prod, stage and dev run the same code. Everything that differs lives in `env.gs`
+under `ENVIRONMENTS.prod`, `ENVIRONMENTS.stage` and `ENVIRONMENTS.dev`, and the Script Property
 `ADDON_ENV` picks one. Nothing in `code.gs`, `i18n.gs` or `languageApi.gs`
 names a host directly.
 
 Per environment: telemetry host (route is
-`microsoftaddinactivitynew` in both), user-region host, per-region API Gateway
+`microsoftaddinactivitynew` in all), user-region host, per-region API Gateway
 ids (verify / admin / service), training portal host (used for the v2 report
 redirect, the onboarding link and the body-link check), legacy report portal
-host, and the unification platform base URLs.
+host, and the unification platform base URLs. An environment may run in
+fewer regions than prod: stage has us-east-1 only, and `envRegion()` sends
+a domain from any other region to us-east-1 for every call.
 
 The build generates each environment's `urlFetchWhitelist` from
 `environmentFetchPrefixes()` in `env.gs`, so code and manifest cannot drift,
 and sets `addOns.common.name` per environment ("CyberNut Reporting Tool" /
-"Cybernut Dev"). The repo's `Appscript.json` is the template.
+"Cybernut Stage" / "Cybernut Dev"). The repo's `Appscript.json` is the template.
 
 Run `debugEnvironment()` from the editor to log the active environment and
 every URL it will fetch.

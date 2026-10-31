@@ -82,11 +82,12 @@ if (loaded) {
   // 5. environments
   const envs = Object.keys(sandbox.ENVIRONMENTS);
   const shape = (o) => JSON.stringify(Object.keys(o).sort());
-  const regionShape = (cfg) => JSON.stringify(Object.keys(cfg.regions).sort());
   for (const name of envs) {
     const cfg = sandbox.ENVIRONMENTS[name];
     if (shape(cfg) !== shape(sandbox.ENVIRONMENTS.prod)) fail(`ENVIRONMENTS.${name}: keys differ from prod`);
-    if (regionShape(cfg) !== regionShape(sandbox.ENVIRONMENTS.prod)) fail(`ENVIRONMENTS.${name}: regions differ from prod`);
+    // an environment may run in fewer regions (stage: us-east-1 only), but always us-east-1, the fallback
+    if (!cfg.regions["us-east-1"]) fail(`ENVIRONMENTS.${name}: no us-east-1 region`);
+    if (shape(cfg.regions) !== shape(cfg.unification)) fail(`ENVIRONMENTS.${name}: unification regions differ from regions`);
     for (const [reg, ids] of Object.entries(cfg.regions)) for (const k of ["verifyUrl", "adminUrl", "serviceUrl"]) if (!/^[a-z0-9]{10}$/.test(ids[k] || "")) fail(`ENVIRONMENTS.${name}.regions.${reg}.${k}: not an API Gateway id`);
     // the manifest the build would produce for this env must cover every prefix
     const prefixes = sandbox.environmentFetchPrefixes(name);
