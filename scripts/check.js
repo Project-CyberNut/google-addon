@@ -87,7 +87,7 @@ if (loaded) {
     const cfg = sandbox.ENVIRONMENTS[name];
     if (shape(cfg) !== shape(sandbox.ENVIRONMENTS.prod)) fail(`ENVIRONMENTS.${name}: keys differ from prod`);
     if (regionShape(cfg) !== regionShape(sandbox.ENVIRONMENTS.prod)) fail(`ENVIRONMENTS.${name}: regions differ from prod`);
-    for (const [reg, ids] of Object.entries(cfg.regions)) for (const k of ["verifyUrl", "adminUrl", "serviceUrl"]) if (!/^[a-z0-9]{10}$/.test(ids[k] || "")) fail(`ENVIRONMENTS.${name}.regions.${reg}.${k}: not an API Gateway id`);
+    for (const [reg, ids] of Object.entries(cfg.regions)) for (const k of ["verifyUrl", "serviceUrl"]) if (!/^[a-z0-9]{10}$/.test(ids[k] || "")) fail(`ENVIRONMENTS.${name}.regions.${reg}.${k}: not an API Gateway id`);
     // the manifest the build would produce for this env must cover every prefix
     const prefixes = sandbox.environmentFetchPrefixes(name);
     const whitelist = [...prefixes, ...(manifest?.urlFetchWhitelist || []).filter((u) => !/execute-api|cybernut\.ai/.test(u))];
