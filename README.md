@@ -96,7 +96,7 @@ names a host directly.
 
 Per environment: telemetry host (route is
 `microsoftaddinactivitynew` in both), user-region host, per-region API Gateway
-ids (verify / admin / service), training portal host (used for the v2 report
+ids (verify / service), training portal host (used for the v2 report
 redirect, the onboarding link and the body-link check), legacy report portal
 host, and the unification platform base URLs.
 
@@ -107,6 +107,30 @@ and sets `addOns.common.name` per environment ("CyberNut Reporting Tool" /
 
 Run `debugEnvironment()` from the editor to log the active environment and
 every URL it will fetch.
+
+## Report flow: account settings (step 2)
+
+When the user submits a report, step 2 reads the account's add-on settings
+from the unification platform (public, no key):
+
+```
+GET {unification}/accounts/settings/plugin?domain=acme.org
+    -> { data: { forwardSuspiciousEmail: "a@acme.org,b@acme.org",
+                 isReportedEmailMoveToTrash: false,
+                 reportedEmailConfirmationMessage: "Thank you, ..." } }
+```
+
+| Field | Used for |
+| --- | --- |
+| `forwardSuspiciousEmail` | `email` in the eventdispatcher payload (who the report is forwarded to). |
+| `isReportedEmailMoveToTrash` | The **only** thing that decides whether the reported email is moved to trash. Only a literal `true` trashes. |
+| `reportedEmailConfirmationMessage` | The confirmation card text. Empty -> the localized `step2.defaultConfirmation`. Not localized by the backend. |
+
+If the call fails (non-200, no `data`), the report is **not** sent and the
+error card is shown. This replaced the AWS `getemail` route and, in step 2
+only, the `trashEmail` answer from `admindomainsgoogle`. Step 1 still calls
+`admindomainsgoogle` to route simulation emails. Runbook:
+[docs/runbooks/report-forwarding-and-trash.md](docs/runbooks/report-forwarding-and-trash.md).
 
 ## Localization
 
