@@ -303,30 +303,50 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
 }
 
 
-async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
-  console.log('getDomainOrFallback|called!', { domainNameTo, adminUrl, reg });
-  const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail?lang=${encodeURIComponent(currentLang())}`;
+var PLUGIN_SETTINGS_PATH = "/accounts/settings/plugin";
+
+/**
+ * The account's add-on settings from the unification platform:
+ *   GET {unification}/accounts/settings/plugin?domain=acme.org
+ *   -> { success, data: { forwardSuspiciousEmail, isReportedEmailMoveToTrash,
+ *                         reportedEmailConfirmationMessage, ... } }
+ * Replaces the AWS `getemail` route and, for step 2, the `trashEmail` answer
+ * of admindomainsgoogle. Throws on any failure: without the forward address
+ * the report cannot go out, so the caller shows the error card.
+ *
+ * Returns only the three fields the add-on uses. `moveToTrash` is true only
+ * for a literal `true`: a missing or malformed flag never deletes an email.
+ */
+function getPluginSettings(domain, reg) {
+  console.log('getPluginSettings|called!', { domain, reg });
+  const url = `${unificationBase(reg)}${PLUGIN_SETTINGS_PATH}?domain=${encodeURIComponent(domain)}`;
   const response = UrlFetchApp.fetch(url, {
-    method: "post",
+    method: "get",
     headers: { "Content-Type": "application/json" },
-    payload: JSON.stringify({ domain: domainNameTo }),
     muteHttpExceptions: true,
   });
 
   const statusCode = response.getResponseCode();
-  console.log('getDomainOrFallback|responseCode|', { statusCode });
-  if (statusCode === 200) {
-    return JSON.parse(response.getContentText());
+  console.log('getPluginSettings|responseCode|', { statusCode });
+  if (statusCode !== 200) {
+    const resolved = resolveApiMessage(statusCode, response.getContentText());
+    console.log('getPluginSettings|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+    throw apiError(`Plugin settings failed. Status: ${statusCode} - ${response.getContentText()}`, resolved);
   }
 
-  const resolved = resolveApiMessage(statusCode, response.getContentText());
-  console.log('getDomainOrFallback|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
-  // Returned rather than thrown, as before — the caller reads fields off it and
-  // fails on the next line. The code rides along so that failure renders right.
-  return apiError(
-    `API failed. Status: ${statusCode} - ${response.getContentText()}`,
-    resolved
-  );
+  const body = parseJsonSafe(response.getContentText());
+  const data = body && body.data;
+  if (!data) {
+    throw new Error(`Plugin settings: no data in response - ${response.getContentText()}`);
+  }
+
+  const settings = {
+    forwardSuspiciousEmail: typeof data.forwardSuspiciousEmail === "string" ? data.forwardSuspiciousEmail.trim() : "",
+    moveToTrash: data.isReportedEmailMoveToTrash === true,
+    confirmationMessage: typeof data.reportedEmailConfirmationMessage === "string" ? data.reportedEmailConfirmationMessage.trim() : "",
+  };
+  console.log('getPluginSettings|result|', settings);
+  return settings;
 }
 
 
@@ -705,23 +725,18 @@ async function handleStep2(e) {
     const attachmentIds = getAttachmentIds(messageId);
     console.log('handleStep2|attachments|', { sourceId: messageId, attachmentIds });
 
-    const { adminUrl, serviceUrl } = getRegionUrls(reg);
-    console.log('handleStep2|urls|', { adminUrl, serviceUrl });
+    const { serviceUrl } = getRegionUrls(reg);
+    console.log('handleStep2|urls|', { serviceUrl });
 
-    let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
-    console.log('handleStep2|suspiciousEmailResponse|', { suspiciousEmailResponse });
-    // getDomainOrFallback answers with an Error rather than throwing one. Every
-    // field read below would be undefined, and the report would go out naming
-    // no recipient — so stop here and let the catch show what the API said.
-    if (suspiciousEmailResponse instanceof Error) {
-      throw suspiciousEmailResponse;
-    }
+    // Throws on failure, so the report never goes out naming no recipient.
+    const settings = getPluginSettings(domainNameTo, reg);
     await callErrorReportingApi(
-      "forward suspicious email " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
+      "forward suspicious email " + settings.forwardSuspiciousEmail +
+        " moveToTrash " + settings.moveToTrash,
       bodyHtml
     );
 
-    adminMessageForThirdStep = suspiciousEmailResponse.CONFIRMATION_MESSAGE;
+    adminMessageForThirdStep = settings.confirmationMessage;
 
     const payload = {
       domain: domainNameTo,
@@ -732,7 +747,7 @@ async function handleStep2(e) {
       emailtemplate: bodyHtml,
       provider: "google",
       triggerBoth: true,
-      email: suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
+      email: settings.forwardSuspiciousEmail,
       subject: subject,
       body: selectedItems.join(", "),
       source: "gmail",
@@ -751,23 +766,11 @@ async function handleStep2(e) {
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
       .addWidget(CardService.newTextParagraph().setText(
-        suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          : t("step2.defaultConfirmation")
+        settings.confirmationMessage || t("step2.defaultConfirmation")
       ));
 
-    let isVerifiedDomain = false;
-    try {
-      const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
-      isVerifiedDomain = verifyResponse.trashEmail;
-      console.log('handleStep2|isVerifiedDomain|', { isVerifiedDomain });
-      await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
-    } catch (e) {
-      await callErrorReportingApi(e.stack, bodyHtml);
-      isVerifiedDomain = true;
-    }
-
-    if (isVerifiedDomain === true) {
+    // The account setting alone decides; admindomainsgoogle is no longer asked.
+    if (settings.moveToTrash) {
       console.log('handleStep2|moving email to trash');
       mailMessage.moveToTrash();
       section.addWidget(CardService.newTextParagraph().setText(t("step2.movedToTrash")));
