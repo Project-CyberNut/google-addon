@@ -28,17 +28,17 @@ var ENVIRONMENTS = {
     telemetryHost: "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com",
     /** Domain -> AWS region lookup. */
     userRegionHost: "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com",
-    /** Per-region API Gateway ids: verify (admindomainsgoogle, campaignversion), admin (getemail), service (eventdispatcher). */
+    /** Per-region API Gateway ids: verify (admindomainsgoogle, campaignversion), service (eventdispatcher). */
     regions: {
-      "us-east-1":      { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" },
-      "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", adminUrl: "b4nzi83qm2", serviceUrl: "vahgicl5qh" },
-      "eu-central-1":   { verifyUrl: "telmnzu55i", adminUrl: "dej7cfclm9", serviceUrl: "p3shdnpenc" },
+      "us-east-1":      { verifyUrl: "44dgkpf1cb", serviceUrl: "560ef3pt4j" },
+      "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", serviceUrl: "vahgicl5qh" },
+      "eu-central-1":   { verifyUrl: "telmnzu55i", serviceUrl: "p3shdnpenc" },
     },
     /** Training portal host: v2 report redirect, onboarding link, and the body-link check. */
     trainingHost: "training.cybernut.com",
     /** Legacy report portal host. */
     portalHost: "www.cybernut-k12.com",
-    /** Unification platform (language preference routes), per region. */
+    /** Unification platform (language preferences, plugin settings), per region. */
     unification: {
       "us-east-1":      "https://prod-us-east-1.cybernut.ai/api/v1",
       "ap-southeast-1": "https://prod-ap-southeast-1.cybernut.ai/api/v1",
@@ -50,9 +50,9 @@ var ENVIRONMENTS = {
     telemetryHost: "https://rhqh5ihdvj.execute-api.us-east-1.amazonaws.com",
     userRegionHost: "https://rg0w8yelb6.execute-api.us-east-1.amazonaws.com",
     regions: {
-      "us-east-1":      { verifyUrl: "u2o82lbd9f", adminUrl: "rg0w8yelb6", serviceUrl: "rhqh5ihdvj" },
-      "ap-southeast-1": { verifyUrl: "9tp2t9h2o2", adminUrl: "o1gk4tisc4", serviceUrl: "cllxz8kqk7" },
-      "eu-central-1":   { verifyUrl: "9v7i6h5197", adminUrl: "efmvxrr92j", serviceUrl: "7jww0knq3g" },
+      "us-east-1":      { verifyUrl: "u2o82lbd9f", serviceUrl: "rhqh5ihdvj" },
+      "ap-southeast-1": { verifyUrl: "9tp2t9h2o2", serviceUrl: "cllxz8kqk7" },
+      "eu-central-1":   { verifyUrl: "9v7i6h5197", serviceUrl: "7jww0knq3g" },
     },
     trainingHost: "dev-training.cybernut.com",
     portalHost: "userportaldev.cybernut-k12.com",
@@ -118,11 +118,11 @@ function environmentFetchPrefixes(name) {
     var host = function (id) { return "https://" + id + ".execute-api." + reg + ".amazonaws.com"; };
     prefixes.push(host(ids.verifyUrl) + "/admindomainsgoogle");
     prefixes.push(host(ids.verifyUrl) + "/campaignversion");
-    prefixes.push(host(ids.adminUrl) + "/getemail");
     prefixes.push(host(ids.serviceUrl) + "/eventdispatcher");
   });
   Object.keys(cfg.unification).forEach(function (reg) {
     prefixes.push(cfg.unification[reg] + "/public/");
+    prefixes.push(cfg.unification[reg] + "/accounts/settings/plugin");
   });
   return prefixes;
 }
