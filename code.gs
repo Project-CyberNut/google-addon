@@ -461,7 +461,8 @@ function homeImageUrl(name, locale) {
   if (!hasUrl(HOME_IMAGES_BASE_URL)) return null;
   var lang = baseLanguage(locale || "en");
   if (HOME_IMAGE_LANGUAGES.indexOf(lang) === -1) return null;
-  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png";
+  // ?v= busts Gmail's image cache when a release re-renders the images.
+  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png?v=" + encodeURIComponent(version);
 }
 
 function homeText(html) {
@@ -472,8 +473,8 @@ function homeText(html) {
 /**
  * "Hi, I'm Chip." block. Where a rendered image exists for the language it
  * is shown as one image (exactly the mock), with the full text as alt text
- * for screen readers. Otherwise it falls back to text: the squirrel in a
- * narrow column beside the greeting (or the greeting alone without
+ * for screen readers. Otherwise it falls back to text, with the squirrel as
+ * a small icon beside the greeting (or the greeting alone without
  * CHIP_IMAGE_URL).
  */
 function addChipIntro(section, locale) {
@@ -485,28 +486,16 @@ function addChipIntro(section, locale) {
     ].join(" ")));
     return;
   }
-  var greeting = homeText("<b>" + t("home.chipGreeting") + "</b>");
-
+  // No Columns (Gmail drew them blank): the squirrel is the greeting's icon.
+  var greeting = CardService.newDecoratedText()
+    .setText('<font color="' + HOME_TEXT_COLOR + '"><b>' + t("home.chipGreeting") + "</b></font>")
+    .setWrapText(true);
   if (hasUrl(CHIP_IMAGE_URL)) {
-    section.addWidget(
-      CardService.newColumns()
-        .setWrapStyle(CardService.WrapStyle.NOWRAP)
-        .addColumn(
-          CardService.newColumn()
-            .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_MINIMUM_SPACE)
-            .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-            .addWidget(CardService.newImage().setImageUrl(CHIP_IMAGE_URL.trim()).setAltText(t("home.chipAlt")))
-        )
-        .addColumn(
-          CardService.newColumn()
-            .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_AVAILABLE_SPACE)
-            .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-            .addWidget(greeting)
-        )
+    greeting.setStartIcon(
+      CardService.newIconImage().setIconUrl(CHIP_IMAGE_URL.trim()).setAltText(t("home.chipAlt"))
     );
-  } else {
-    section.addWidget(greeting);
   }
+  section.addWidget(greeting);
 
   section
     .addWidget(homeText(t("home.chipIntro")))
@@ -596,36 +585,67 @@ function homeButton(imageName, locale, label, functionName, filled) {
 }
 
 /**
- * Bottom row from the mock: version on the left, the language dropdown on
- * the right, both vertically centred. A fixed footer can only hold buttons,
- * so this is the card's last section instead: it sits at the end of the
- * content, not pinned to the bottom of the panel. With one language offered
- * there is nothing to pick, so the current language shows as text.
+ * Bottom row from the mock, on one line: the version on the left, the
+ * language box on the right. Shown as one rendered image (footer-<lang>.png,
+ * exactly the mock) that opens the language picker card when clicked; with
+ * one language offered, footer-single-<lang>.png (no arrow, not clickable).
+ * Not Columns: Gmail drew a Columns widget holding the version and a
+ * dropdown as a blank row on the dev add-on (CYB4-2596).
+ * Without a rendered image it falls back to a DecoratedText: version text +
+ * an outlined language button. Last card section, since a fixed footer can
+ * only hold buttons (it sits right after the buttons, not pinned).
  */
 function homeFooterSection(ctx) {
-  var languageWidget = buildLanguageSelector(ctx, { compact: true }) ||
-    CardService.newTextParagraph()
-      .setText('<font color="' + HOME_MUTED_COLOR + '">' + localeOptionLabel(ctx.locale) + "</font>");
+  var canPick = buildLanguageSelector(ctx) !== null;
+  var section = CardService.newCardSection();
+  var pick = CardService.newAction().setFunctionName("openLanguagePicker");
+  var label = localeOptionLabel(ctx.locale);
 
-  return CardService.newCardSection().addWidget(
-    CardService.newColumns()
-      .setWrapStyle(CardService.WrapStyle.NOWRAP)
-      .addColumn(
-        CardService.newColumn()
-          .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_MINIMUM_SPACE)
-          .setHorizontalAlignment(CardService.HorizontalAlignment.START)
-          .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-          .addWidget(CardService.newTextParagraph()
-            .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"))
-      )
-      .addColumn(
-        CardService.newColumn()
-          .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_AVAILABLE_SPACE)
-          .setHorizontalAlignment(CardService.HorizontalAlignment.END)
-          .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-          .addWidget(languageWidget)
+  var rendered = homeImageUrl(canPick ? "footer" : "footer-single", ctx.locale);
+  if (rendered) {
+    var row = CardService.newImage().setImageUrl(rendered)
+      .setAltText(version + ". " + label + (canPick ? ". " + t("common.languageSelectLabel") : ""));
+    if (canPick) row.setOnClickAction(pick);
+    return section.addWidget(row);
+  }
+
+  return section.addWidget(
+    CardService.newDecoratedText()
+      .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>")
+      .setButton(
+        CardService.newTextButton()
+          .setText(label + (canPick ? "  ⌄" : ""))
+          .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+          .setDisabled(!canPick)
+          .setOnClickAction(canPick ? pick : CardService.newAction().setFunctionName("noopAction"))
       )
   );
+}
+
+/** The card the footer language button pushes; onLanguageChange() returns to home. */
+function buildLanguagePickerCard(ctx) {
+  var section = CardService.newCardSection();
+  var selector = buildLanguageSelector(ctx);
+  if (selector) section.addWidget(selector);
+  return CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle(t("common.languageSelectLabel")))
+    .addSection(section)
+    .build();
+}
+
+/** Footer language button handler. */
+async function openLanguagePicker(e) {
+  console.log('openLanguagePicker|called!');
+  try {
+    var ctx = await getLanguageContext(e);
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(buildLanguagePickerCard(ctx)))
+      .build();
+  } catch (error) {
+    console.log('openLanguagePicker|error|caught!', error.stack);
+    await callErrorReportingApi(error.stack, " ");
+    return buildErrorCard(error.messageCode, error.messageParams);
+  }
 }
 
 /**

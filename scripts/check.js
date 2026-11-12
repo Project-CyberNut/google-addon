@@ -93,10 +93,18 @@ if (loaded) {
   } else if (base.trim() !== "") {
     for (const lang of sandbox.HOME_IMAGE_LANGUAGES || []) {
       if (!sandbox.MESSAGES[lang]) fail(`env.gs: HOME_IMAGE_LANGUAGES has ${lang}, which is not in MESSAGES`);
-      for (const name of ["chip-intro", "btn-report", "btn-how"]) {
+      for (const name of ["chip-intro", "btn-report", "btn-how", "footer", "footer-single"]) {
         if (!fs.existsSync(path.join(ROOT, "assets", "home", `${name}-${lang}.png`))) fail(`assets/home/${name}-${lang}.png missing: run npm run render:home`);
       }
     }
+  }
+
+  // 4d. the footer images show the version: they must match package.json
+  if (base.trim() !== "") {
+    const want = "v " + JSON.parse(read("package.json")).version;
+    let got = null;
+    try { got = JSON.parse(read("assets/home/footer.json")).version; } catch (e) { /* reported below */ }
+    if (got !== want) fail(`assets/home footer images show ${got || "no version"}, package.json is ${want}: run npm run render:home`);
   }
 
   // 5. environments

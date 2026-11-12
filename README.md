@@ -114,17 +114,23 @@ The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
 Panel" mock attached to CYB4-2596, top to bottom:
 
 1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
-   (`home.*` keys in `i18n.gs`). Rendered as a compact version of the mock's
-   block (smaller squirrel and heading, tighter spacing) so the whole card,
-   down to the version + language row, fits a normal Gmail panel without
-   scrolling.
+   (`home.*` keys in `i18n.gs`). Rendered from the mock with a smaller
+   squirrel (48x51) and heading (20px), 15px text and tighter spacing, and
+   slightly shorter buttons and footer, so the card fits a normal Gmail panel
+   (about 770px tall) without scrolling in English.
 2. "See an overview of CyberNut": a thumbnail with a play button. Clicking it
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Bottom row: version on the left, the language dropdown on the right.
-   Choosing a language saves it, as before, and redraws the card in that
-   language. With one language offered, the language shows as text.
+4. Bottom row, on one line: the version on the left, the language box on the
+   right ("【EN】 English ⌄"), exactly as in the mock. It's a rendered image
+   (`footer-<lang>.png`); clicking it opens a small picker card with the real
+   dropdown, and choosing a language saves it, as before, and returns to the
+   home card in that language. With one language offered it shows
+   `footer-single-<lang>.png` (no arrow) and does nothing when clicked.
+   **No `Columns`:** on the dev add-on Gmail drew a `Columns` widget holding
+   the version and a dropdown as a blank row, so the add-on doesn't use
+   `Columns` anywhere.
 
 Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
@@ -138,6 +144,10 @@ text, one set per language (`assets/home/<name>-<lang>.png`):
 - The Chip block has the full text as alt text, for screen readers.
 - The button images are clickable and run the same actions (`handleStep1`,
   `openLearnAddonLink`).
+- **The footer images show the version.** After every version bump in
+  `package.json`, run `npm run render:home` and commit the PNGs:
+  `npm test` fails until `assets/home/footer.json` matches. Image URLs carry
+  `?v=<version>` so Gmail doesn't show a cached old footer.
 - **After changing any `home.*` text, or adding a language:** add the
   language to `HOME_IMAGE_LANGUAGES` in `env.gs`, run `npm run render:home`
   (needs Google Chrome; `CHROME=/path` overrides), check the PNGs, and commit
@@ -179,10 +189,11 @@ cannot be built:
   screen recording came to ~470 KB), the same shape as the thumbnail, and on
   a public https URL (Apps Script only receives the `.gs` files). With ffmpeg:
   `ffmpeg -i video.mp4 -t 30 -vf "fps=8,scale=360:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 overview-preview.gif`
-- **Language selector:** a fixed footer (pinned to the bottom of the panel)
-  can only hold buttons, not a dropdown. The mock's dropdown matters more, so
-  the version + language row is the card's last section instead: it sits right
-  after the buttons rather than pinned to the bottom.
+- **Language selector:** the version + language row is the card's last
+  section, right after the buttons, not a fixed footer pinned to the bottom
+  (fixed footers only take a primary and a secondary button, which can't be
+  laid out as "text left, box right"). The language box is a button that opens
+  the picker card (see item 4 above).
 - **Styling:** font sizes, background fills, button width and border colours
   are not available in CardService, hence the rendered images above. Still not
   matched: the blue header bar title (Gmail shows the add-on name there) and

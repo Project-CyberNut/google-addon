@@ -592,8 +592,9 @@ async function onLanguageChange(e) {
   var saved = false;
   if (ctx.identity) saved = setPreferredLanguage(ctx.identity, chosen);
 
-  // Picked in the home card's footer dropdown: redraw the home card in the
-  // new language (popToRoot in case it was changed from a pushed card).
+  // Picked on the pushed picker card (openLanguagePicker, from the home
+  // footer's language button): back to the root home card, redrawn in the
+  // new language.
   var card = await buildHomeCard(e);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().popToRoot().updateCard(card))
