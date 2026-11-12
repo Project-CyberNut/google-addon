@@ -61,12 +61,13 @@ p, h2, h3 { margin: 0; }
 </style></head><body><div id="root" dir="${RTL.has(lang) ? "rtl" : "ltr"}">${body}</div></body></html>`;
 }
 
-// The mock's Chip block, at the mock's exact sizes and spacing.
+// The mock's Chip block: mock text sizes and spacing, with a smaller squirrel
+// (48x51, mock 76x80) and heading (20px, mock 26px), as asked in review.
 function chipIntro(m) {
   return `<div style="box-sizing:border-box;padding:16px;border-radius:10px;background:#F1F3FF;display:flex;flex-direction:column;gap:12px">
-  <div style="display:flex;align-items:center;gap:16px">
-    <img src="${CHIP}" alt="" style="width:76px;height:80px;flex:none;object-fit:contain">
-    <h2 style="font-size:26px;line-height:32px;font-weight:700">${esc(m.chipGreeting)}</h2>
+  <div style="display:flex;align-items:center;gap:12px">
+    <img src="${CHIP}" alt="" style="width:48px;height:51px;flex:none;object-fit:contain">
+    <h2 style="font-size:20px;line-height:26px;font-weight:700">${esc(m.chipGreeting)}</h2>
   </div>
   <p style="font-size:16px;line-height:24px">${esc(m.chipIntro)}</p>
   <div style="display:flex;flex-direction:column;gap:4px">

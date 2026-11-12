@@ -114,8 +114,8 @@ The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
 Panel" mock attached to CYB4-2596, top to bottom:
 
 1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
-   (`home.*` keys in `i18n.gs`). Rendered at the mock's exact sizes (76x80
-   squirrel, 26px heading, 15-16px text).
+   (`home.*` keys in `i18n.gs`). Rendered with the mock's text sizes (15-16px)
+   and spacing, and a smaller squirrel (48x51) and heading (20px).
 2. "See an overview of CyberNut": a thumbnail with a play button. Clicking it
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
