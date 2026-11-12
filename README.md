@@ -122,12 +122,15 @@ Panel" mock attached to CYB4-2596, top to bottom:
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Bottom row: the language dropdown, with the version in small grey text
-   under it. Choosing a language saves it, as before, and redraws the card in
-   that language. With one language offered, the language shows as text.
-   **No `Columns`:** the mock has the version and dropdown side by side, but
-   on the dev add-on Gmail drew a `Columns` widget holding them as a blank
-   row, so the add-on doesn't use `Columns` anywhere.
+4. Bottom row, on one line: the version on the left, the language on the
+   right ("【EN】 English ⌄"), as in the mock. It's a `DecoratedText` with an
+   end button. The language is a button, not a dropdown: a dropdown can't sit
+   on the same line as text without `Columns`, and on the dev add-on Gmail
+   drew a `Columns` widget holding the version and dropdown as a blank row, so
+   the add-on doesn't use `Columns` anywhere. The button opens a small picker
+   card with the real dropdown; choosing a language saves it, as before, and
+   returns to the home card in that language. With one language offered, the
+   button is disabled.
 
 Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
@@ -182,10 +185,11 @@ cannot be built:
   screen recording came to ~470 KB), the same shape as the thumbnail, and on
   a public https URL (Apps Script only receives the `.gs` files). With ffmpeg:
   `ffmpeg -i video.mp4 -t 30 -vf "fps=8,scale=360:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 overview-preview.gif`
-- **Language selector:** a fixed footer (pinned to the bottom of the panel)
-  can only hold buttons, not a dropdown. The mock's dropdown matters more, so
-  the version + language row is the card's last section instead: it sits right
-  after the buttons rather than pinned to the bottom.
+- **Language selector:** the version + language row is the card's last
+  section, right after the buttons, not a fixed footer pinned to the bottom
+  (fixed footers only take a primary and a secondary button, which can't be
+  laid out as "text left, box right"). The language box is a button that opens
+  the picker card (see item 4 above).
 - **Styling:** font sizes, background fills, button width and border colours
   are not available in CardService, hence the rendered images above. Still not
   matched: the blue header bar title (Gmail shows the add-on name there) and

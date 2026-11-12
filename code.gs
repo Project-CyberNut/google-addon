@@ -584,20 +584,56 @@ function homeButton(imageName, locale, label, functionName, filled) {
 }
 
 /**
- * Bottom row from the mock: the language dropdown, then the version.
- * Not side by side: Gmail drew a Columns widget holding these as a blank row
- * (seen on the dev add-on, CYB4-2596), so the add-on uses no Columns at all.
- * A fixed footer can only hold buttons, so this is the card's last section:
- * it sits right after the buttons rather than pinned to the bottom. With one
- * language offered there is nothing to pick, so the language shows as text.
+ * Bottom row from the mock, on one line: the version on the left, the
+ * language on the right. Built as a DecoratedText (text + end button), not
+ * Columns: Gmail drew a Columns widget holding the version and a dropdown
+ * as a blank row on the dev add-on (CYB4-2596). A dropdown can't be a
+ * DecoratedText's end widget, so the language is an outlined button styled
+ * like the mock's box ("【EN】 English ⌄"); it opens a small picker card
+ * with the real dropdown, and onLanguageChange() comes back to this card.
+ * With one language offered there is nothing to pick: the button is
+ * disabled and has no arrow. Last card section, since a fixed footer can
+ * only hold buttons (it sits right after the buttons, not pinned).
  */
 function homeFooterSection(ctx) {
-  var muted = function (text) {
-    return CardService.newTextParagraph().setText('<font color="' + HOME_MUTED_COLOR + '">' + text + "</font>");
-  };
-  return CardService.newCardSection()
-    .addWidget(buildLanguageSelector(ctx, { compact: true }) || muted(localeOptionLabel(ctx.locale)))
-    .addWidget(muted(version));
+  var canPick = buildLanguageSelector(ctx) !== null;
+  var languageButton = CardService.newTextButton()
+    .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
+    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    .setDisabled(!canPick)
+    .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "openLanguagePicker" : "noopAction"));
+
+  return CardService.newCardSection().addWidget(
+    CardService.newDecoratedText()
+      .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>")
+      .setButton(languageButton)
+  );
+}
+
+/** The card the footer language button pushes; onLanguageChange() returns to home. */
+function buildLanguagePickerCard(ctx) {
+  var section = CardService.newCardSection();
+  var selector = buildLanguageSelector(ctx);
+  if (selector) section.addWidget(selector);
+  return CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle(t("common.languageSelectLabel")))
+    .addSection(section)
+    .build();
+}
+
+/** Footer language button handler. */
+async function openLanguagePicker(e) {
+  console.log('openLanguagePicker|called!');
+  try {
+    var ctx = await getLanguageContext(e);
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().pushCard(buildLanguagePickerCard(ctx)))
+      .build();
+  } catch (error) {
+    console.log('openLanguagePicker|error|caught!', error.stack);
+    await callErrorReportingApi(error.stack, " ");
+    return buildErrorCard(error.messageCode, error.messageParams);
+  }
 }
 
 /**
