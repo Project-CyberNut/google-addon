@@ -472,8 +472,8 @@ function homeText(html) {
 /**
  * "Hi, I'm Chip." block. Where a rendered image exists for the language it
  * is shown as one image (exactly the mock), with the full text as alt text
- * for screen readers. Otherwise it falls back to text: the squirrel in a
- * narrow column beside the greeting (or the greeting alone without
+ * for screen readers. Otherwise it falls back to text, with the squirrel as
+ * a small icon beside the greeting (or the greeting alone without
  * CHIP_IMAGE_URL).
  */
 function addChipIntro(section, locale) {
@@ -485,28 +485,16 @@ function addChipIntro(section, locale) {
     ].join(" ")));
     return;
   }
-  var greeting = homeText("<b>" + t("home.chipGreeting") + "</b>");
-
+  // No Columns (Gmail drew them blank): the squirrel is the greeting's icon.
+  var greeting = CardService.newDecoratedText()
+    .setText('<font color="' + HOME_TEXT_COLOR + '"><b>' + t("home.chipGreeting") + "</b></font>")
+    .setWrapText(true);
   if (hasUrl(CHIP_IMAGE_URL)) {
-    section.addWidget(
-      CardService.newColumns()
-        .setWrapStyle(CardService.WrapStyle.NOWRAP)
-        .addColumn(
-          CardService.newColumn()
-            .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_MINIMUM_SPACE)
-            .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-            .addWidget(CardService.newImage().setImageUrl(CHIP_IMAGE_URL.trim()).setAltText(t("home.chipAlt")))
-        )
-        .addColumn(
-          CardService.newColumn()
-            .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_AVAILABLE_SPACE)
-            .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-            .addWidget(greeting)
-        )
+    greeting.setStartIcon(
+      CardService.newIconImage().setIconUrl(CHIP_IMAGE_URL.trim()).setAltText(t("home.chipAlt"))
     );
-  } else {
-    section.addWidget(greeting);
   }
+  section.addWidget(greeting);
 
   section
     .addWidget(homeText(t("home.chipIntro")))
@@ -596,36 +584,20 @@ function homeButton(imageName, locale, label, functionName, filled) {
 }
 
 /**
- * Bottom row from the mock: version on the left, the language dropdown on
- * the right, both vertically centred. A fixed footer can only hold buttons,
- * so this is the card's last section instead: it sits at the end of the
- * content, not pinned to the bottom of the panel. With one language offered
- * there is nothing to pick, so the current language shows as text.
+ * Bottom row from the mock: the language dropdown, then the version.
+ * Not side by side: Gmail drew a Columns widget holding these as a blank row
+ * (seen on the dev add-on, CYB4-2596), so the add-on uses no Columns at all.
+ * A fixed footer can only hold buttons, so this is the card's last section:
+ * it sits right after the buttons rather than pinned to the bottom. With one
+ * language offered there is nothing to pick, so the language shows as text.
  */
 function homeFooterSection(ctx) {
-  var languageWidget = buildLanguageSelector(ctx, { compact: true }) ||
-    CardService.newTextParagraph()
-      .setText('<font color="' + HOME_MUTED_COLOR + '">' + localeOptionLabel(ctx.locale) + "</font>");
-
-  return CardService.newCardSection().addWidget(
-    CardService.newColumns()
-      .setWrapStyle(CardService.WrapStyle.NOWRAP)
-      .addColumn(
-        CardService.newColumn()
-          .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_MINIMUM_SPACE)
-          .setHorizontalAlignment(CardService.HorizontalAlignment.START)
-          .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-          .addWidget(CardService.newTextParagraph()
-            .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"))
-      )
-      .addColumn(
-        CardService.newColumn()
-          .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_AVAILABLE_SPACE)
-          .setHorizontalAlignment(CardService.HorizontalAlignment.END)
-          .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-          .addWidget(languageWidget)
-      )
-  );
+  var muted = function (text) {
+    return CardService.newTextParagraph().setText('<font color="' + HOME_MUTED_COLOR + '">' + text + "</font>");
+  };
+  return CardService.newCardSection()
+    .addWidget(buildLanguageSelector(ctx, { compact: true }) || muted(localeOptionLabel(ctx.locale)))
+    .addWidget(muted(version));
 }
 
 /**

@@ -122,9 +122,12 @@ Panel" mock attached to CYB4-2596, top to bottom:
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Bottom row: version on the left, the language dropdown on the right.
-   Choosing a language saves it, as before, and redraws the card in that
-   language. With one language offered, the language shows as text.
+4. Bottom row: the language dropdown, with the version in small grey text
+   under it. Choosing a language saves it, as before, and redraws the card in
+   that language. With one language offered, the language shows as text.
+   **No `Columns`:** the mock has the version and dropdown side by side, but
+   on the dev add-on Gmail drew a `Columns` widget holding them as a blank
+   row, so the add-on doesn't use `Columns` anywhere.
 
 Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
