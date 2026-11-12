@@ -61,35 +61,37 @@ p, h2, h3 { margin: 0; }
 </style></head><body><div id="root" dir="${RTL.has(lang) ? "rtl" : "ltr"}">${body}</div></body></html>`;
 }
 
-// The mock's Chip block: mock text sizes and spacing, with a smaller squirrel
-// (48x51, mock 76x80) and heading (20px, mock 26px), as asked in review.
+// The mock's Chip block, tightened so the whole home card fits a normal
+// Gmail panel without scrolling: smaller squirrel (48x51, mock 76x80) and
+// heading (20px, mock 26px), 15px text with tighter line height and gaps.
 function chipIntro(m) {
-  return `<div style="box-sizing:border-box;padding:16px;border-radius:10px;background:#F1F3FF;display:flex;flex-direction:column;gap:12px">
+  return `<div style="box-sizing:border-box;padding:12px 14px;border-radius:10px;background:#F1F3FF;display:flex;flex-direction:column;gap:8px">
   <div style="display:flex;align-items:center;gap:12px">
     <img src="${CHIP}" alt="" style="width:48px;height:51px;flex:none;object-fit:contain">
     <h2 style="font-size:20px;line-height:26px;font-weight:700">${esc(m.chipGreeting)}</h2>
   </div>
-  <p style="font-size:16px;line-height:24px">${esc(m.chipIntro)}</p>
-  <div style="display:flex;flex-direction:column;gap:4px">
-    <h3 style="font-size:16px;line-height:22px;font-weight:700">${esc(m.keyPartHeading)}</h3>
-    <p style="font-size:15px;line-height:22px">${esc(m.keyPartBody)}</p>
+  <p style="font-size:15px;line-height:21px">${esc(m.chipIntro)}</p>
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <h3 style="font-size:15px;line-height:20px;font-weight:700">${esc(m.keyPartHeading)}</h3>
+    <p style="font-size:15px;line-height:20px">${esc(m.keyPartBody)}</p>
   </div>
-  <p style="font-size:15px;line-height:22px">${esc(m.spotOne)}</p>
+  <p style="font-size:15px;line-height:20px">${esc(m.spotOne)}</p>
 </div>`;
 }
 
+// Buttons: the mock's look, a little shorter (44 and 40px, mock 52 and 48).
 const reportButton = (m) =>
-  `<div style="box-sizing:border-box;width:100%;height:52px;border-radius:6px;background:#C9402F;color:#FFFFFF;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 12px;text-align:center">${esc(m.reportButton)}</div>`;
+  `<div style="box-sizing:border-box;width:100%;height:44px;border-radius:6px;background:#C9402F;color:#FFFFFF;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 12px;text-align:center">${esc(m.reportButton)}</div>`;
 const howButton = (m) =>
-  `<div style="box-sizing:border-box;width:100%;height:48px;border:2px solid #3B4FE4;border-radius:6px;background:#FFFFFF;color:#2F3FBF;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 12px;text-align:center">${esc(m.howReportingWorks)}</div>`;
+  `<div style="box-sizing:border-box;width:100%;height:40px;border:2px solid #3B4FE4;border-radius:6px;background:#FFFFFF;color:#2F3FBF;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 12px;text-align:center">${esc(m.howReportingWorks)}</div>`;
 
-// Footer row from the mock: 13px muted version, 180x44 language box.
+// Footer row from the mock: 13px muted version, 180x40 language box (mock 44).
 const footer = (lang, arrow) => () =>
-  `<div style="height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+  `<div style="height:40px;display:flex;align-items:center;justify-content:space-between;gap:12px">
   <span style="font-size:13px;color:#4A4F66">${esc(VERSION)}</span>
-  <div style="position:relative;box-sizing:border-box;width:180px;height:44px;border:1px solid #8A8FA3;border-radius:6px;background:#FFFFFF;display:flex;align-items:center;padding-inline:12px 34px;font-size:14px;color:#1B1F3B;white-space:nowrap;overflow:hidden">
+  <div style="position:relative;box-sizing:border-box;width:180px;height:40px;border:1px solid #8A8FA3;border-radius:6px;background:#FFFFFF;display:flex;align-items:center;padding-inline:12px 34px;font-size:14px;color:#1B1F3B;white-space:nowrap;overflow:hidden">
     ${esc(optionLabel(lang))}
-    ${arrow ? `<svg width="12" height="8" viewBox="0 0 12 8" style="position:absolute;inset-inline-end:12px;top:18px"><path d="M1 1.5 L6 6.5 L11 1.5" stroke="#1B1F3B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ""}
+    ${arrow ? `<svg width="12" height="8" viewBox="0 0 12 8" style="position:absolute;inset-inline-end:12px;top:16px"><path d="M1 1.5 L6 6.5 L11 1.5" stroke="#1B1F3B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ""}
   </div>
 </div>`;
 
