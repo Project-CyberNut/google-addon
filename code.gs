@@ -485,35 +485,69 @@ function chipIntroSection() {
 }
 
 /**
- * "See an overview of CyberNut". Gmail add-ons cannot play video: the card
- * has no video widget, and Gmail opens links in a new tab even when asked for
- * OVERLAY. So the panel shows a silent looping GIF preview (or a still image)
- * and the full video opens in a new tab, from the image or the button below
- * it. Null - section hidden - until OVERVIEW_VIDEO_URL is set.
+ * "See an overview of CyberNut". Gmail add-ons cannot play video: cards have
+ * no video widget, and Gmail opens links in a new tab even when asked for
+ * OVERLAY. So the video plays as a silent looping GIF inside the panel:
+ *   - at rest: OVERVIEW_VIDEO_THUMBNAIL_URL (a still with a play button);
+ *     clicking it calls playOverviewPreview(), which redraws the card with
+ *     OVERVIEW_VIDEO_GIF_URL in its place;
+ *   - playing: the GIF; clicking it opens the full video.
+ * "Watch the full video" always opens OVERVIEW_VIDEO_URL in a new tab, with
+ * sound. Without a GIF the thumbnail opens the video directly; without a
+ * thumbnail the GIF shows straight away. Null (section hidden) until
+ * OVERVIEW_VIDEO_URL is set.
  */
-function overviewVideoSection() {
+function overviewVideoSection(playing) {
   if (!hasUrl(OVERVIEW_VIDEO_URL)) return null;
   var openVideo = CardService.newOpenLink()
     .setUrl(OVERVIEW_VIDEO_URL.trim())
     .setOpenAs(CardService.OpenAs.FULL_SIZE);
-
-  var watchButton = CardService.newTextButton()
-    .setText("▶ " + t("home.overviewWatch"))
-    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-    .setOpenLink(openVideo);
+  var hasGif = hasUrl(OVERVIEW_VIDEO_GIF_URL);
+  var hasThumb = hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL);
 
   var section = CardService.newCardSection()
     .setHeader("<b>" + t("home.overviewTitle") + "</b>");
-  if (hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL)) {
+
+  if (hasGif && (playing || !hasThumb)) {
     section.addWidget(
       CardService.newImage()
-        .setImageUrl(OVERVIEW_VIDEO_THUMBNAIL_URL.trim())
+        .setImageUrl(OVERVIEW_VIDEO_GIF_URL.trim())
         .setAltText(t("home.overviewWatch"))
         .setOpenLink(openVideo)
     );
+  } else if (hasThumb) {
+    var thumb = CardService.newImage()
+      .setImageUrl(OVERVIEW_VIDEO_THUMBNAIL_URL.trim())
+      .setAltText(hasGif ? t("home.overviewPlay") : t("home.overviewWatch"));
+    if (hasGif) {
+      thumb.setOnClickAction(CardService.newAction().setFunctionName("playOverviewPreview"));
+    } else {
+      thumb.setOpenLink(openVideo);
+    }
+    section.addWidget(thumb);
   }
-  // The button stays under the preview too: a GIF does not look clickable.
-  return section.addWidget(watchButton);
+
+  return section.addWidget(
+    CardService.newTextButton()
+      .setText("▶ " + t("home.overviewWatch"))
+      .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+      .setOpenLink(openVideo)
+  );
+}
+
+/** Thumbnail click: redraw the home card with the GIF playing in its place. */
+async function playOverviewPreview(e) {
+  console.log('playOverviewPreview|called!');
+  try {
+    var card = await buildHomeCard(e, { videoPlaying: true });
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
+  } catch (error) {
+    console.log('playOverviewPreview|error|caught!', error.stack);
+    await callErrorReportingApi(error.stack, " ");
+    return buildErrorCard(error.messageCode, error.messageParams);
+  }
 }
 
 /**
@@ -570,17 +604,19 @@ async function openLanguagePicker(e) {
 
 /**
  * The home card itself, with no telemetry side effects: HomePage() wraps it
- * for the trigger, and onLanguageChange() redraws it after a switch.
+ * for the trigger, onLanguageChange() redraws it after a switch, and
+ * playOverviewPreview() redraws it with the video GIF playing
+ * (options.videoPlaying).
  * Layout follows the CYB4-2596 mock (see README "Home panel").
  */
-async function buildHomeCard(e) {
+async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
 
   // No card header: the panel opens straight on the Chip block.
   var builder = CardService.newCardBuilder()
     .addSection(chipIntroSection());
 
-  var videoSection = overviewVideoSection();
+  var videoSection = overviewVideoSection(Boolean(options && options.videoPlaying));
   if (videoSection) builder.addSection(videoSection);
 
   var actions = CardService.newCardSection();
