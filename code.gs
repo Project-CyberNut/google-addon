@@ -585,8 +585,9 @@ function homeButton(imageName, locale, label, functionName, filled) {
 }
 
 /**
- * Bottom row from the mock, on one line: the version on the left, the
- * language box on the right. Shown as one rendered image (footer-<lang>.png,
+ * Footer row from the mock, inside the card (used in Spam, where the pinned
+ * footer can't be clicked): the version on the left, the language box on the
+ * right. Shown as one rendered image (footer-<lang>.png,
  * exactly the mock) that opens the language picker card when clicked; with
  * one language offered, footer-single-<lang>.png (no arrow, not clickable).
  * Not Columns: Gmail drew a Columns widget holding the version and a
@@ -649,42 +650,69 @@ async function openLanguagePicker(e) {
 }
 
 /**
+ * Pinned footer: always at the bottom of the panel. A fixed footer only takes
+ * a primary and a secondary Gmail button (no image, text or dropdown), so it
+ * can't look exactly like the mock's row: the version is a disabled
+ * borderless button and the language an outlined button that opens the
+ * picker card (disabled, without the arrow, when one language is offered).
+ */
+function homeFixedFooter(ctx) {
+  var canPick = buildLanguageSelector(ctx) !== null;
+  return CardService.newFixedFooter()
+    .setPrimaryButton(
+      CardService.newTextButton()
+        .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
+        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+        .setDisabled(!canPick)
+        .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "openLanguagePicker" : "noopAction"))
+    )
+    .setSecondaryButton(
+      CardService.newTextButton()
+        .setText(version)
+        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
+        .setDisabled(true)
+        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
+    );
+}
+
+/** True when the open message sits in Spam (false without one, or on error). */
+function isSpamContext(e) {
+  if (!e || !e.gmail || !e.gmail.messageId) return false;
+  try {
+    return GmailApp.getMessageById(e.gmail.messageId).getThread().isInSpam();
+  } catch (err) {
+    console.log("isSpamContext|error|", err && err.message);
+    return false;
+  }
+}
+
+/**
  * The home card itself, with no telemetry side effects: HomePage() wraps it
  * for the trigger, onLanguageChange() redraws it after a switch, and
  * playOverviewPreview() redraws it with the video GIF playing
  * (options.videoPlaying). Layout follows the CYB4-2596 mock (see README
  * "Home panel").
+ *
+ * In Spam, Gmail blocks reporting and leaves an invisible layer over the
+ * bottom of the panel that swallows clicks on a fixed footer (see #40). So a
+ * Spam message gets the same card without the video, without Report Email,
+ * and with the footer as the in-card row (footer image) instead of pinned.
+ * Spam is detected here, not passed in, so redraws (language change) keep it.
  */
 async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
+  var spam = isSpamContext(e);
 
   var body = CardService.newCardSection();
   addChipIntro(body, ctx.locale);
-  addOverviewVideo(body, Boolean(options && options.videoPlaying));
+  if (!spam) addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
-  if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
+  if (e && !spam) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
 
-  return CardService.newCardBuilder()
-    .addSection(body)
-    .addSection(homeFooterSection(ctx))
-    .build();
-}
-
-/**
- * Minimal card for messages that sit in Spam. Gmail refuses contextual content
- * and actions for spam and shows its own "can't be used for recommended content"
- * toast; the dismissed toast leaves an invisible layer over the bottom of the
- * panel that swallows clicks on the fixed footer. So no footer and no report
- * button here: there is nothing at the bottom for that layer to cover.
- */
-function buildSpamCard() {
-  return CardService.newCardBuilder()
-    .addSection(
-      CardService.newCardSection()
-        .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
-    )
-    .build();
+  var builder = CardService.newCardBuilder().addSection(body);
+  if (spam) return builder.addSection(homeFooterSection(ctx)).build();
+  return builder.setFixedFooter(homeFixedFooter(ctx)).build();
 }
 
 async function HomePage(e) {
@@ -696,8 +724,10 @@ async function HomePage(e) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
       if (mailMessage.getThread().isInSpam()) {
-        console.log('HomePage|spam message|returning minimal card');
-        return buildSpamCard();
+        // buildHomeCard() detects Spam itself: no video, no Report Email,
+        // footer in the card instead of pinned.
+        console.log('HomePage|spam message|home card without video');
+        return await buildHomeCard(e);
       }
       let bodyHtml = mailMessage.getBody();
       await callErrorReportingApi("Home function run perfectly", bodyHtml);

@@ -62,7 +62,6 @@ var MESSAGES = {
       close: "Close",
     },
     home: {
-      tagline: "Suspicious content or sender? Report it for further analysis.",
       chipGreeting: "Hi, I'm Chip.",
       chipAlt: "Chip, the blue squirrel",
       chipIntro: "I am part of your school's cybersecurity awareness program.",
@@ -112,7 +111,6 @@ var MESSAGES = {
       close: "Cerrar",
     },
     home: {
-      tagline: "¿Contenido o remitente sospechoso? Repórtalo para un análisis más detallado.",
       chipGreeting: "Hola, soy Chip.",
       chipAlt: "Chip, la ardilla azul",
       chipIntro: "Formo parte del programa de concientización sobre ciberseguridad de tu escuela.",
@@ -162,7 +160,6 @@ var MESSAGES = {
       close: "إغلاق",
     },
     home: {
-      tagline: "محتوى أو مُرسِل مشبوه؟ أبلغ عنه لتحليله بشكل أعمق.",
       chipGreeting: "مرحبًا، أنا تشيب.",
       chipAlt: "تشيب، السنجاب الأزرق",
       chipIntro: "أنا جزء من برنامج التوعية بالأمن السيبراني في مدرستك.",

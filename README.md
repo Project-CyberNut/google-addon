@@ -122,15 +122,23 @@ Panel" mock attached to CYB4-2596, top to bottom:
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Bottom row, on one line: the version on the left, the language box on the
-   right ("【EN】 English ⌄"), exactly as in the mock. It's a rendered image
-   (`footer-<lang>.png`); clicking it opens a small picker card with the real
-   dropdown, and choosing a language saves it, as before, and returns to the
-   home card in that language. With one language offered it shows
-   `footer-single-<lang>.png` (no arrow) and does nothing when clicked.
+4. Pinned footer, always at the bottom of the panel: the version and the
+   language ("【EN】 English ⌄"). A fixed footer only takes two Gmail buttons
+   (no image, text or dropdown), so it is Gmail's button style, not the mock's
+   square box: the version is a disabled borderless button, the language an
+   outlined button that opens a small picker card with the real dropdown.
+   Choosing a language saves it, as before, and returns to the home card in
+   that language. With one language offered, the button is disabled.
    **No `Columns`:** on the dev add-on Gmail drew a `Columns` widget holding
    the version and a dropdown as a blank row, so the add-on doesn't use
    `Columns` anywhere.
+
+**Spam.** For a message in Spam the home card has no video and no Report
+Email (Gmail blocks reporting there), and the footer is the mock-style row
+image (`footer-<lang>.png`) inside the card, not pinned: in Spam, Gmail leaves
+an invisible layer over the bottom of the panel that swallows clicks on a
+fixed footer (#40). `buildHomeCard()` detects Spam itself, so a language
+change in Spam keeps this layout.
 
 Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
