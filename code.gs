@@ -485,32 +485,35 @@ function chipIntroSection() {
 }
 
 /**
- * "See an overview of CyberNut". Gmail add-ons cannot play video inside the
- * panel, so the thumbnail (or a button, without one) opens the video in a
- * popup over Gmail. Null - section hidden - until OVERVIEW_VIDEO_URL is set.
+ * "See an overview of CyberNut". Gmail add-ons cannot play video: the card
+ * has no video widget, and Gmail opens links in a new tab even when asked for
+ * OVERLAY. So the panel shows a silent looping GIF preview (or a still image)
+ * and the full video opens in a new tab, from the image or the button below
+ * it. Null - section hidden - until OVERVIEW_VIDEO_URL is set.
  */
 function overviewVideoSection() {
   if (!hasUrl(OVERVIEW_VIDEO_URL)) return null;
   var openVideo = CardService.newOpenLink()
     .setUrl(OVERVIEW_VIDEO_URL.trim())
-    .setOpenAs(CardService.OpenAs.OVERLAY)
-    // Gmail opened OVERLAY alone as a full YouTube tab. With RELOAD it tracks
-    // the window, so it opens a popup; closing it just redraws the home card.
-    .setOnClose(CardService.OnClose.RELOAD);
+    .setOpenAs(CardService.OpenAs.FULL_SIZE);
 
-  var widget = hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL)
-    ? CardService.newImage()
+  var watchButton = CardService.newTextButton()
+    .setText("▶ " + t("home.overviewWatch"))
+    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    .setOpenLink(openVideo);
+
+  var section = CardService.newCardSection()
+    .setHeader("<b>" + t("home.overviewTitle") + "</b>");
+  if (hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL)) {
+    section.addWidget(
+      CardService.newImage()
         .setImageUrl(OVERVIEW_VIDEO_THUMBNAIL_URL.trim())
         .setAltText(t("home.overviewWatch"))
         .setOpenLink(openVideo)
-    : CardService.newTextButton()
-        .setText("▶ " + t("home.overviewWatch"))
-        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-        .setOpenLink(openVideo);
-
-  return CardService.newCardSection()
-    .setHeader("<b>" + t("home.overviewTitle") + "</b>")
-    .addWidget(widget);
+    );
+  }
+  // The button stays under the preview too: a GIF does not look clickable.
+  return section.addWidget(watchButton);
 }
 
 /**
