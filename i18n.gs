@@ -550,13 +550,14 @@ function readFormInput(e, name) {
  * The language dropdown, or null when the account leaves the user no choice
  * (one language is no choice at all, so nothing is rendered).
  */
-function buildLanguageSelector(ctx) {
+function buildLanguageSelector(ctx, opts) {
   if (!ctx || !ctx.identity || ctx.options.length < 2) return null;
   var dropdown = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
     .setFieldName("language")
-    .setTitle(t("common.languageSelectLabel"))
     .setOnChangeAction(CardService.newAction().setFunctionName("onLanguageChange"));
+  // compact: the home footer row (no label above the box, as in the mock).
+  if (!(opts && opts.compact)) dropdown.setTitle(t("common.languageSelectLabel"));
   ctx.options.forEach(function (code) {
     dropdown.addItem(localeOptionLabel(code), code, code === ctx.locale);
   });
@@ -591,8 +592,8 @@ async function onLanguageChange(e) {
   var saved = false;
   if (ctx.identity) saved = setPreferredLanguage(ctx.identity, chosen);
 
-  // Picked on the pushed picker card (openLanguagePicker): back to the root
-  // home card, redrawn in the new language.
+  // Picked in the home card's footer dropdown: redraw the home card in the
+  // new language (popToRoot in case it was changed from a pushed card).
   var card = await buildHomeCard(e);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().popToRoot().updateCard(card))
