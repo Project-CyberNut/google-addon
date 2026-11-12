@@ -28,17 +28,17 @@ var ENVIRONMENTS = {
     telemetryHost: "https://560ef3pt4j.execute-api.us-east-1.amazonaws.com",
     /** Domain -> AWS region lookup. */
     userRegionHost: "https://44dgkpf1cb.execute-api.us-east-1.amazonaws.com",
-    /** Per-region API Gateway ids: verify (admindomainsgoogle, campaignversion), admin (getemail), service (eventdispatcher). */
+    /** Per-region API Gateway ids: verify (admindomainsgoogle, campaignversion), service (eventdispatcher). */
     regions: {
-      "us-east-1":      { verifyUrl: "44dgkpf1cb", adminUrl: "k3g591je54", serviceUrl: "560ef3pt4j" },
-      "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", adminUrl: "b4nzi83qm2", serviceUrl: "vahgicl5qh" },
-      "eu-central-1":   { verifyUrl: "telmnzu55i", adminUrl: "dej7cfclm9", serviceUrl: "p3shdnpenc" },
+      "us-east-1":      { verifyUrl: "44dgkpf1cb", serviceUrl: "560ef3pt4j" },
+      "ap-southeast-1": { verifyUrl: "vsqdkxcc8d", serviceUrl: "vahgicl5qh" },
+      "eu-central-1":   { verifyUrl: "telmnzu55i", serviceUrl: "p3shdnpenc" },
     },
     /** Training portal host: v2 report redirect, onboarding link, and the body-link check. */
     trainingHost: "training.cybernut.com",
     /** Legacy report portal host. */
     portalHost: "www.cybernut-k12.com",
-    /** Unification platform (language preference routes), per region. */
+    /** Unification platform (language preferences, plugin settings), per region. */
     unification: {
       "us-east-1":      "https://prod-us-east-1.cybernut.ai/api/v1",
       "ap-southeast-1": "https://prod-ap-southeast-1.cybernut.ai/api/v1",
@@ -50,9 +50,9 @@ var ENVIRONMENTS = {
     telemetryHost: "https://rhqh5ihdvj.execute-api.us-east-1.amazonaws.com",
     userRegionHost: "https://rg0w8yelb6.execute-api.us-east-1.amazonaws.com",
     regions: {
-      "us-east-1":      { verifyUrl: "u2o82lbd9f", adminUrl: "rg0w8yelb6", serviceUrl: "rhqh5ihdvj" },
-      "ap-southeast-1": { verifyUrl: "9tp2t9h2o2", adminUrl: "o1gk4tisc4", serviceUrl: "cllxz8kqk7" },
-      "eu-central-1":   { verifyUrl: "9v7i6h5197", adminUrl: "efmvxrr92j", serviceUrl: "7jww0knq3g" },
+      "us-east-1":      { verifyUrl: "u2o82lbd9f", serviceUrl: "rhqh5ihdvj" },
+      "ap-southeast-1": { verifyUrl: "9tp2t9h2o2", serviceUrl: "cllxz8kqk7" },
+      "eu-central-1":   { verifyUrl: "9v7i6h5197", serviceUrl: "7jww0knq3g" },
     },
     trainingHost: "dev-training.cybernut.com",
     portalHost: "userportaldev.cybernut-k12.com",
@@ -65,6 +65,45 @@ var ENVIRONMENTS = {
 };
 
 var DEFAULT_ENV = "prod";
+
+/**
+ * Home panel assets (CYB4-2596), the same in prod and dev. Each must be empty
+ * or https (scripts/check.js). Images are loaded by Gmail, not UrlFetchApp,
+ * so they need no whitelist entry.
+ *
+ *   OVERVIEW_VIDEO_URL           "See an overview of CyberNut" full video,
+ *                                opened in a new tab by "Watch the full
+ *                                video" (Gmail can't play video in the
+ *                                panel). Empty hides the section.
+ *   OVERVIEW_VIDEO_THUMBNAIL_URL Still with a play button, shown at rest.
+ *                                Clicking it starts the GIF in the panel.
+ *   OVERVIEW_VIDEO_GIF_URL       Silent looping GIF of the video (30 s or
+ *                                less, under ~1 MB). Keep it the same shape
+ *                                as the thumbnail so nothing jumps.
+ *   CHIP_IMAGE_URL               Chip the squirrel beside "Hi, I'm Chip.".
+ *                                Empty shows the greeting without the image.
+ */
+// TEMP test video (CyberNut "Introducing Advanced Threat Search"), with a
+// thumbnail and a 30s GIF made from it, served from this public repo
+// (assets/). Before prod: confirm the final video and move both images to
+// CyberNut's own storage.
+/**
+ * Rendered images for the parts of the CYB4-2596 mock that CardService can't
+ * style: the Chip block (26px heading, light blue box) and the two
+ * full-width buttons. Made by `npm run render:home` into assets/home/ as
+ * <name>-<lang>.png for each HOME_IMAGE_LANGUAGES entry; `npm test` checks
+ * every file exists. A language not listed (or an empty base URL) falls back
+ * to plain CardService text and buttons.
+ */
+var HOME_IMAGES_BASE_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/home/";
+var HOME_IMAGE_LANGUAGES = ["en", "es", "ar"];
+
+var OVERVIEW_VIDEO_URL = "https://www.youtube.com/watch?v=dHMQR2qz5Ow";
+var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-thumbnail.jpg";
+var OVERVIEW_VIDEO_GIF_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-preview.gif";
+// Chip from the CYB4-2596 mock (160x170 PNG in assets/). Move to CyberNut's
+// own storage with the video images before prod.
+var CHIP_IMAGE_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/chip.png";
 
 /** Memoised per execution. */
 var currentEnvMemo = null;
@@ -118,11 +157,11 @@ function environmentFetchPrefixes(name) {
     var host = function (id) { return "https://" + id + ".execute-api." + reg + ".amazonaws.com"; };
     prefixes.push(host(ids.verifyUrl) + "/admindomainsgoogle");
     prefixes.push(host(ids.verifyUrl) + "/campaignversion");
-    prefixes.push(host(ids.adminUrl) + "/getemail");
     prefixes.push(host(ids.serviceUrl) + "/eventdispatcher");
   });
   Object.keys(cfg.unification).forEach(function (reg) {
     prefixes.push(cfg.unification[reg] + "/public/");
+    prefixes.push(cfg.unification[reg] + "/accounts/settings/plugin");
   });
   return prefixes;
 }

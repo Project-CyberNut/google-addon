@@ -303,30 +303,50 @@ async function EventDispatcherApi(payload, serviceUrl, reg) {
 }
 
 
-async function getDomainOrFallback(domainNameTo, adminUrl, reg) {
-  console.log('getDomainOrFallback|called!', { domainNameTo, adminUrl, reg });
-  const url = `https://${adminUrl}.execute-api.${reg}.amazonaws.com/getemail?lang=${encodeURIComponent(currentLang())}`;
+var PLUGIN_SETTINGS_PATH = "/accounts/settings/plugin";
+
+/**
+ * The account's add-on settings from the unification platform:
+ *   GET {unification}/accounts/settings/plugin?domain=acme.org
+ *   -> { success, data: { forwardSuspiciousEmail, isReportedEmailMoveToTrash,
+ *                         reportedEmailConfirmationMessage, ... } }
+ * Replaces the AWS `getemail` route and, for step 2, the `trashEmail` answer
+ * of admindomainsgoogle. Throws on any failure: without the forward address
+ * the report cannot go out, so the caller shows the error card.
+ *
+ * Returns only the three fields the add-on uses. `moveToTrash` is true only
+ * for a literal `true`: a missing or malformed flag never deletes an email.
+ */
+function getPluginSettings(domain, reg) {
+  console.log('getPluginSettings|called!', { domain, reg });
+  const url = `${unificationBase(reg)}${PLUGIN_SETTINGS_PATH}?domain=${encodeURIComponent(domain)}`;
   const response = UrlFetchApp.fetch(url, {
-    method: "post",
+    method: "get",
     headers: { "Content-Type": "application/json" },
-    payload: JSON.stringify({ domain: domainNameTo }),
     muteHttpExceptions: true,
   });
 
   const statusCode = response.getResponseCode();
-  console.log('getDomainOrFallback|responseCode|', { statusCode });
-  if (statusCode === 200) {
-    return JSON.parse(response.getContentText());
+  console.log('getPluginSettings|responseCode|', { statusCode });
+  if (statusCode !== 200) {
+    const resolved = resolveApiMessage(statusCode, response.getContentText());
+    console.log('getPluginSettings|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
+    throw apiError(`Plugin settings failed. Status: ${statusCode} - ${response.getContentText()}`, resolved);
   }
 
-  const resolved = resolveApiMessage(statusCode, response.getContentText());
-  console.log('getDomainOrFallback|coded failure|', { statusCode, code: resolved.code, detail: resolved.detail });
-  // Returned rather than thrown, as before — the caller reads fields off it and
-  // fails on the next line. The code rides along so that failure renders right.
-  return apiError(
-    `API failed. Status: ${statusCode} - ${response.getContentText()}`,
-    resolved
-  );
+  const body = parseJsonSafe(response.getContentText());
+  const data = body && body.data;
+  if (!data) {
+    throw new Error(`Plugin settings: no data in response - ${response.getContentText()}`);
+  }
+
+  const settings = {
+    forwardSuspiciousEmail: typeof data.forwardSuspiciousEmail === "string" ? data.forwardSuspiciousEmail.trim() : "",
+    moveToTrash: data.isReportedEmailMoveToTrash === true,
+    confirmationMessage: typeof data.reportedEmailConfirmationMessage === "string" ? data.reportedEmailConfirmationMessage.trim() : "",
+  };
+  console.log('getPluginSettings|result|', settings);
+  return settings;
 }
 
 
@@ -420,40 +440,313 @@ function noopAction() {
   return CardService.newActionResponseBuilder().build();
 }
 
+/** True when an env.gs asset constant holds a URL (they default to ""). */
+function hasUrl(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/**
+ * Home card layout from the CYB4-2596 mock ("Chip Reporting Panel"). Gmail
+ * draws a divider between card sections, and the mock has none in its body,
+ * so the whole body is ONE section; the version + language row is a second
+ * section, whose divider stands in for the mock's footer border.
+ * CardService has no font sizes, background fills or full-width buttons, so
+ * those parts of the mock can't be matched (see README "Home panel").
+ */
+var HOME_TEXT_COLOR = "#1B1F3B";   // mock body text
+var HOME_MUTED_COLOR = "#4A4F66";  // mock footer text
+
+/** URL of a rendered home image (env.gs HOME_IMAGES_*), or null to fall back to text. */
+function homeImageUrl(name, locale) {
+  if (!hasUrl(HOME_IMAGES_BASE_URL)) return null;
+  var lang = baseLanguage(locale || "en");
+  if (HOME_IMAGE_LANGUAGES.indexOf(lang) === -1) return null;
+  // ?v= busts Gmail's image cache when a release re-renders the images.
+  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png?v=" + encodeURIComponent(version);
+}
+
+function homeText(html) {
+  return CardService.newTextParagraph()
+    .setText('<font color="' + HOME_TEXT_COLOR + '">' + html + "</font>");
+}
+
+/**
+ * "Hi, I'm Chip." block. Where a rendered image exists for the language it
+ * is shown as one image (exactly the mock), with the full text as alt text
+ * for screen readers. Otherwise it falls back to text, with the squirrel as
+ * a small icon beside the greeting (or the greeting alone without
+ * CHIP_IMAGE_URL).
+ */
+function addChipIntro(section, locale) {
+  var rendered = homeImageUrl("chip-intro", locale);
+  if (rendered) {
+    section.addWidget(CardService.newImage().setImageUrl(rendered).setAltText([
+      t("home.chipGreeting"), t("home.chipIntro"), t("home.keyPartHeading"),
+      t("home.keyPartBody"), t("home.spotOne"),
+    ].join(" ")));
+    return;
+  }
+  // No Columns (Gmail drew them blank): the squirrel is the greeting's icon.
+  var greeting = CardService.newDecoratedText()
+    .setText('<font color="' + HOME_TEXT_COLOR + '"><b>' + t("home.chipGreeting") + "</b></font>")
+    .setWrapText(true);
+  if (hasUrl(CHIP_IMAGE_URL)) {
+    greeting.setStartIcon(
+      CardService.newIconImage().setIconUrl(CHIP_IMAGE_URL.trim()).setAltText(t("home.chipAlt"))
+    );
+  }
+  section.addWidget(greeting);
+
+  section
+    .addWidget(homeText(t("home.chipIntro")))
+    .addWidget(homeText("<b>" + t("home.keyPartHeading") + "</b><br>" + t("home.keyPartBody")))
+    .addWidget(homeText(t("home.spotOne")));
+}
+
+/**
+ * "See an overview of CyberNut". Gmail add-ons cannot play video (no video
+ * widget; Gmail opens links in a new tab even when asked for OVERLAY), so
+ * the video plays as a silent looping GIF inside the panel:
+ *   - at rest: OVERVIEW_VIDEO_THUMBNAIL_URL (a still with a play button);
+ *     clicking it calls playOverviewPreview(), which redraws the card with
+ *     OVERVIEW_VIDEO_GIF_URL in its place;
+ *   - playing: the GIF; clicking it opens OVERVIEW_VIDEO_URL in a new tab.
+ * Without a thumbnail the GIF shows straight away; without a GIF the
+ * thumbnail opens the video. Only with neither image is there a "Watch"
+ * button. Nothing is added until OVERVIEW_VIDEO_URL is set.
+ */
+function addOverviewVideo(section, playing) {
+  if (!hasUrl(OVERVIEW_VIDEO_URL)) return;
+  var openVideo = CardService.newOpenLink()
+    .setUrl(OVERVIEW_VIDEO_URL.trim())
+    .setOpenAs(CardService.OpenAs.FULL_SIZE);
+  var hasGif = hasUrl(OVERVIEW_VIDEO_GIF_URL);
+  var hasThumb = hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL);
+
+  section.addWidget(homeText("<b>" + t("home.overviewTitle") + "</b>"));
+
+  if (hasGif && (playing || !hasThumb)) {
+    section.addWidget(
+      CardService.newImage()
+        .setImageUrl(OVERVIEW_VIDEO_GIF_URL.trim())
+        .setAltText(t("home.overviewWatch"))
+        .setOpenLink(openVideo)
+    );
+  } else if (hasThumb) {
+    var thumb = CardService.newImage()
+      .setImageUrl(OVERVIEW_VIDEO_THUMBNAIL_URL.trim())
+      .setAltText(hasGif ? t("home.overviewPlay") : t("home.overviewWatch"));
+    if (hasGif) {
+      thumb.setOnClickAction(CardService.newAction().setFunctionName("playOverviewPreview"));
+    } else {
+      thumb.setOpenLink(openVideo);
+    }
+    section.addWidget(thumb);
+  } else {
+    section.addWidget(
+      CardService.newTextButton()
+        .setText("▶ " + t("home.overviewWatch"))
+        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+        .setOpenLink(openVideo)
+    );
+  }
+}
+
+/** Thumbnail click: redraw the home card with the GIF playing in its place. */
+async function playOverviewPreview(e) {
+  console.log('playOverviewPreview|called!');
+  try {
+    var card = await buildHomeCard(e, { videoPlaying: true });
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
+  } catch (error) {
+    console.log('playOverviewPreview|error|caught!', error.stack);
+    await callErrorReportingApi(error.stack, " ");
+    return buildErrorCard(error.messageCode, error.messageParams);
+  }
+}
+
+/**
+ * One of the two home buttons. CardService buttons can't be full width or
+ * take a border colour, so where a rendered image exists it is a clickable
+ * image of the mock's button (same action); otherwise a normal button.
+ */
+function homeButton(imageName, locale, label, functionName, filled) {
+  var action = CardService.newAction().setFunctionName(functionName);
+  var rendered = homeImageUrl(imageName, locale);
+  if (rendered) {
+    return CardService.newImage().setImageUrl(rendered).setAltText(label).setOnClickAction(action);
+  }
+  var button = CardService.newTextButton().setText(label).setOnClickAction(action);
+  return filled
+    ? button.setTextButtonStyle(CardService.TextButtonStyle.FILLED).setBackgroundColor("#C9402F")
+    : button.setTextButtonStyle(CardService.TextButtonStyle.OUTLINED);
+}
+
+/**
+ * The language button ("【EN】 English  ⌄"). Clicking it runs
+ * showLanguagePicker(), which redraws the same card (no new page) with the
+ * language list open just above it (arrow ⌃); clicking again closes it.
+ * Disabled, without the arrow, when only one language is offered.
+ */
+function homeLanguageButton(ctx, open) {
+  var canPick = buildLanguageSelector(ctx) !== null;
+  return CardService.newTextButton()
+    .setText(localeOptionLabel(ctx.locale) + (canPick ? (open ? "  ⌃" : "  ⌄") : ""))
+    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    .setDisabled(!canPick)
+    .setOnClickAction(canPick
+      ? CardService.newAction().setFunctionName("showLanguagePicker").setParameters({ open: open ? "0" : "1" })
+      : CardService.newAction().setFunctionName("noopAction"));
+}
+
+/**
+ * The open language list, shown at the bottom of the card just above the
+ * footer, like a dropdown's open menu: one row per offered language, the
+ * current one bold with a check. A row runs onLanguageChange() with that
+ * language (action parameter), which saves it and redraws the card closed.
+ * Gmail can't open a real dropdown from a footer button (a fixed footer only
+ * takes buttons), so this list is the dropdown.
+ */
+function homeLanguageMenuSection(ctx) {
+  var section = CardService.newCardSection();
+  ctx.options.forEach(function (code) {
+    var current = code === ctx.locale;
+    var label = localeOptionLabel(code);
+    section.addWidget(
+      CardService.newDecoratedText()
+        .setText('<font color="' + HOME_TEXT_COLOR + '">' + (current ? "<b>" + label + "</b>  ✓" : label) + "</font>")
+        .setOnClickAction(CardService.newAction().setFunctionName("onLanguageChange").setParameters({ language: code }))
+    );
+  });
+  return section;
+}
+
+/**
+ * Spam only: the footer row inside the card, looking like the pinned footer
+ * (version left, language button right, one line). A DecoratedText with an
+ * end button lays them out side by side without Columns (Columns drew blank
+ * on the dev add-on). Not pinned: in Spam, Gmail's invisible layer over the
+ * bottom of the panel swallows fixed-footer clicks (#40).
+ */
+function homeLanguageSection(ctx, open) {
+  return CardService.newCardSection().addWidget(
+    CardService.newDecoratedText()
+      .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>")
+      .setButton(homeLanguageButton(ctx, open))
+  );
+}
+
+/**
+ * Invisible padding after the version in the home card's pinned footer, per
+ * language, so "v 2.5.8" sits at the left like the mock. Same trick as
+ * VERSION_FOOTER_PADDING (report cards): Gmail keeps both footer buttons
+ * together on the right, so the padding widens the version button leftwards;
+ * the language label plus padding must stay near 140px or the row wraps.
+ * Label widths measured at the sidebar's 14px Arial in Chrome (the report
+ * cards' "Onboarding Tutorial" measured 123px here vs 121px in Gmail):
+ *   en  "【EN】 English  ⌄"  114px -> 6 + 1 thin = 140px
+ *   es  "【ES】 Español  ⌄"  118px -> 5 + 1 thin = 140px
+ *   ar  "【AR】 العربية  ⌄"   98px -> 10 + 1 thin = 140px
+ * Tune against the dev add-on if the version isn't at the left edge.
+ */
+var HOME_FOOTER_PADDING = {
+  en: { nbsp: 6, thin: 1 },
+  es: { nbsp: 5, thin: 1 },
+  ar: { nbsp: 10, thin: 1 },
+};
+
+function homeFooterPadding(locale) {
+  var pad = HOME_FOOTER_PADDING[baseLanguage(locale || "en")] || { nbsp: 0, thin: 0 };
+  return "\u00a0".repeat(pad.nbsp) + "\u2009".repeat(pad.thin);
+}
+
+/**
+ * Pinned footer (always at the bottom of the panel), as in the mock: the
+ * version on the left, the language on the right. A fixed footer only takes
+ * two Gmail buttons, so the language is an outlined button; clicking it runs
+ * showLanguagePicker(), which redraws THIS card (no new page) with the real
+ * dropdown at the bottom, just above this footer. With one language offered the button is disabled.
+ */
+function homeFixedFooter(ctx, open) {
+  return CardService.newFixedFooter()
+    .setPrimaryButton(homeLanguageButton(ctx, open))
+    .setSecondaryButton(
+      CardService.newTextButton()
+        .setText(version + homeFooterPadding(ctx.locale) + "\u2060")
+        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
+        .setDisabled(true)
+        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
+    );
+}
+
+/** Language button: same card (no new page), redrawn with the language list open or closed. */
+async function showLanguagePicker(e) {
+  console.log('showLanguagePicker|called!');
+  try {
+    var open = !(e && e.parameters && e.parameters.open === "0");
+    var card = await buildHomeCard(e, { showLanguagePicker: open });
+    return CardService.newActionResponseBuilder()
+      .setNavigation(CardService.newNavigation().updateCard(card))
+      .build();
+  } catch (error) {
+    console.log('showLanguagePicker|error|caught!', error.stack);
+    await callErrorReportingApi(error.stack, " ");
+    return buildErrorCard(error.messageCode, error.messageParams);
+  }
+}
+
+/** True when the open message sits in Spam (false without one, or on error). */
+function isSpamContext(e) {
+  if (!e || !e.gmail || !e.gmail.messageId) return false;
+  try {
+    return GmailApp.getMessageById(e.gmail.messageId).getThread().isInSpam();
+  } catch (err) {
+    console.log("isSpamContext|error|", err && err.message);
+    return false;
+  }
+}
+
 /**
  * The home card itself, with no telemetry side effects: HomePage() wraps it
- * for the trigger, and the language dropdown redraws it after a switch.
+ * for the trigger, onLanguageChange() redraws it after a switch, and
+ * playOverviewPreview() redraws it with the video GIF playing
+ * (options.videoPlaying). Layout follows the CYB4-2596 mock (see README
+ * "Home panel").
+ *
+ * Everywhere but Spam: pinned footer (version + language button), and with
+ * options.showLanguagePicker the language list open at the bottom of the
+ * card, just above the footer.
+ * In Spam a fixed footer can't be clicked (Gmail's invisible layer over the
+ * bottom of the panel, #40), so a Spam message gets the same card without
+ * the video, with the version + language row inside the card instead of
+ * pinned.
+ * Report Email stays: it sits mid-card, clear of that layer. Spam is detected here, not passed in,
+ * so redraws (language change) keep it.
  */
-async function buildHomeCard(e) {
+async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
+  var spam = isSpamContext(e);
+  // Language list open on request (the language button): at the bottom of
+  // the same card, just above the footer. Choosing a language runs
+  // onLanguageChange(), which redraws the card with it closed.
+  var open = Boolean(options && options.showLanguagePicker) && buildLanguageSelector(ctx) !== null;
 
-  var reportButton = CardService.newTextButton()
-    .setText(t("home.reportButton"))
-    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-    .setBackgroundColor("#D83025")
-    .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
+  var body = CardService.newCardSection();
+  addChipIntro(body, ctx.locale);
+  if (!spam) addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
-  var builder = CardService.newCardBuilder();
+  if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
+  body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
 
-  // Language dropdown first, at the top of the card.
-  const languageSelector = buildLanguageSelector(ctx);
-  if (languageSelector) {
-    builder.addSection(CardService.newCardSection().addWidget(languageSelector));
-  }
+  var builder = CardService.newCardBuilder().addSection(body);
+  if (open) builder.addSection(homeLanguageMenuSection(ctx));
 
-  builder.addSection(
-    CardService.newCardSection()
-      .setCollapsible(false)
-      .setNumUncollapsibleWidgets(1)
-      .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
-  );
-
-  if (e) {
-    builder.addSection(CardService.newCardSection().addWidget(reportButton));
-  }
-
-  builder.setFixedFooter(onboardingFooter());
-  return builder.build();
+  // Spam: no fixed footer (its clicks are swallowed there, #40); the same
+  // version + language row sits inside the card instead.
+  if (spam) return builder.addSection(homeLanguageSection(ctx, open)).build();
+  return builder.setFixedFooter(homeFixedFooter(ctx, open)).build();
 }
 
 async function HomePage(e) {
@@ -464,6 +757,11 @@ async function HomePage(e) {
     if (e.gmail) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
+      if (mailMessage.getThread().isInSpam()) {
+        // buildHomeCard() detects Spam itself: no video, footer in the card.
+        console.log('HomePage|spam message|home card without video');
+        return await buildHomeCard(e);
+      }
       let bodyHtml = mailMessage.getBody();
       await callErrorReportingApi("Home function run perfectly", bodyHtml);
     } else {
@@ -685,23 +983,18 @@ async function handleStep2(e) {
     const attachmentIds = getAttachmentIds(messageId);
     console.log('handleStep2|attachments|', { sourceId: messageId, attachmentIds });
 
-    const { adminUrl, serviceUrl } = getRegionUrls(reg);
-    console.log('handleStep2|urls|', { adminUrl, serviceUrl });
+    const { serviceUrl } = getRegionUrls(reg);
+    console.log('handleStep2|urls|', { serviceUrl });
 
-    let suspiciousEmailResponse = await getDomainOrFallback(domainNameTo, adminUrl, reg);
-    console.log('handleStep2|suspiciousEmailResponse|', { suspiciousEmailResponse });
-    // getDomainOrFallback answers with an Error rather than throwing one. Every
-    // field read below would be undefined, and the report would go out naming
-    // no recipient — so stop here and let the catch show what the API said.
-    if (suspiciousEmailResponse instanceof Error) {
-      throw suspiciousEmailResponse;
-    }
+    // Throws on failure, so the report never goes out naming no recipient.
+    const settings = getPluginSettings(domainNameTo, reg);
     await callErrorReportingApi(
-      "forward suspicious email " + suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
+      "forward suspicious email " + settings.forwardSuspiciousEmail +
+        " moveToTrash " + settings.moveToTrash,
       bodyHtml
     );
 
-    adminMessageForThirdStep = suspiciousEmailResponse.CONFIRMATION_MESSAGE;
+    adminMessageForThirdStep = settings.confirmationMessage;
 
     const payload = {
       domain: domainNameTo,
@@ -712,7 +1005,7 @@ async function handleStep2(e) {
       emailtemplate: bodyHtml,
       provider: "google",
       triggerBoth: true,
-      email: suspiciousEmailResponse.FORWARD_SUSPICIOUS_EMAIL,
+      email: settings.forwardSuspiciousEmail,
       subject: subject,
       body: selectedItems.join(", "),
       source: "gmail",
@@ -731,23 +1024,11 @@ async function handleStep2(e) {
       .setCollapsible(false)
       .setNumUncollapsibleWidgets(1)
       .addWidget(CardService.newTextParagraph().setText(
-        suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          ? suspiciousEmailResponse.CONFIRMATION_MESSAGE
-          : t("step2.defaultConfirmation")
+        settings.confirmationMessage || t("step2.defaultConfirmation")
       ));
 
-    let isVerifiedDomain = false;
-    try {
-      const verifyResponse = await verifyDomain(message_google, StatusMessage, reg, to);
-      isVerifiedDomain = verifyResponse.trashEmail;
-      console.log('handleStep2|isVerifiedDomain|', { isVerifiedDomain });
-      await callErrorReportingApi("Is Verified Domain " + isVerifiedDomain, bodyHtml);
-    } catch (e) {
-      await callErrorReportingApi(e.stack, bodyHtml);
-      isVerifiedDomain = true;
-    }
-
-    if (isVerifiedDomain === true) {
+    // The account setting alone decides; admindomainsgoogle is no longer asked.
+    if (settings.moveToTrash) {
       console.log('handleStep2|moving email to trash');
       mailMessage.moveToTrash();
       section.addWidget(CardService.newTextParagraph().setText(t("step2.movedToTrash")));

@@ -96,7 +96,7 @@ names a host directly.
 
 Per environment: telemetry host (route is
 `microsoftaddinactivitynew` in both), user-region host, per-region API Gateway
-ids (verify / admin / service), training portal host (used for the v2 report
+ids (verify / service), training portal host (used for the v2 report
 redirect, the onboarding link and the body-link check), legacy report portal
 host, and the unification platform base URLs.
 
@@ -107,6 +107,131 @@ and sets `addOns.common.name` per environment ("CyberNut Reporting Tool" /
 
 Run `debugEnvironment()` from the editor to log the active environment and
 every URL it will fetch.
+
+## Home panel (CYB4-2596)
+
+The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
+Panel" mock attached to CYB4-2596, top to bottom:
+
+1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
+   (`home.*` keys in `i18n.gs`). Rendered from the mock with a smaller
+   squirrel (48x51) and heading (20px), 15px text and tighter spacing, and
+   slightly shorter buttons and footer, so the card fits a normal Gmail panel
+   (about 770px tall) without scrolling in English.
+2. "See an overview of CyberNut": a thumbnail with a play button. Clicking it
+   plays the video as a GIF in the panel (see **Video** below).
+3. **Report Email** (only when an email is open) and **How reporting works**
+   (opens the training onboarding page, as "Onboarding Tutorial" did).
+4. Pinned footer, always at the bottom of the panel: the version on the left
+   and the language button ("【EN】 English ⌄") on the right. A fixed footer
+   only takes two Gmail buttons (no dropdown, text or image), so:
+   - the version is a disabled borderless button, pushed to the left with
+     invisible padding measured per language (`HOME_FOOTER_PADDING` in
+     `code.gs`, checked by `npm test`; same trick as the report cards'
+     `VERSION_FOOTER_PADDING`);
+   - clicking the language button redraws the same card (no new page) with
+     the language list open at the bottom, just above the footer (one row
+     per language, the current one bold with a check; the button shows ⌃).
+     Choosing a language saves it, as before, and redraws the card in that
+     language with the list closed; clicking the button again closes it.
+     Gmail can't open a real dropdown from a footer button, so this list is
+     the dropdown.
+   With one language offered, the button is disabled. **No `Columns`:** on
+   the dev add-on Gmail drew a `Columns` widget as a blank row.
+
+**Spam.** For a message in Spam the home card has no video and no pinned
+footer (Gmail leaves an
+invisible layer over the bottom of the panel there that swallows its clicks,
+#40): the same row (version left, language button right) is the card's last
+section instead, as a `DecoratedText` with an end button. `buildHomeCard()` detects Spam itself,
+so a language change in Spam keeps this layout.
+
+Items 1-3 are one card section, so Gmail draws no dividers between them, as
+in the mock. The bottom row is a second section; its divider is the mock's
+footer border.
+
+**Rendered images (exact mock look).** CardService can't do font sizes,
+background fills, full-width buttons or border colours, so the Chip block and
+the two buttons are PNGs rendered from the mock's styles and the `home.*`
+text, one set per language (`assets/home/<name>-<lang>.png`):
+
+- The Chip block has the full text as alt text, for screen readers.
+- The button images are clickable and run the same actions (`handleStep1`,
+  `openLearnAddonLink`).
+- **After changing any `home.*` text, or adding a language:** add the
+  language to `HOME_IMAGE_LANGUAGES` in `env.gs`, run `npm run render:home`
+  (needs Google Chrome; `CHROME=/path` overrides), check the PNGs, and commit
+  them. `npm test` fails if a listed language is missing an image.
+- A language not in `HOME_IMAGE_LANGUAGES`, or an empty
+  `HOME_IMAGES_BASE_URL`, falls back to plain text and Gmail buttons.
+- The images load from `HOME_IMAGES_BASE_URL` (the `dev` branch of this
+  public repo for now). Move them to CyberNut's own storage before prod.
+
+**Assets** live in `env.gs` as top-level constants, the same in prod and dev.
+Each one is `""` until it is set, and `npm test` rejects anything that is not https:
+
+| Constant | Empty means |
+| --- | --- |
+| `OVERVIEW_VIDEO_URL` | The whole video section is hidden. |
+| `OVERVIEW_VIDEO_THUMBNAIL_URL` | The GIF shows straight away (or only the "Watch the full video" button, with no GIF either). |
+| `OVERVIEW_VIDEO_GIF_URL` | Clicking the thumbnail opens the full video in a new tab instead of playing in the panel. |
+| `CHIP_IMAGE_URL` | "Hi, I'm Chip." shows without the squirrel. |
+
+To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
+`npm test`, merge to `dev`, and check it in the Cybernut Dev add-on before `main`.
+
+**Gmail limits.** Add-ons only render Google's card widgets, so some of the mock
+cannot be built:
+- **Video:** it cannot play inside Gmail. Cards have no video widget or
+  iframe, and Gmail opened links in a new tab even with `OpenAs.OVERLAY` (and
+  with `OnClose.RELOAD`, tried in #47). So the video plays as a silent looping
+  GIF in the panel:
+  1. At rest the panel shows `OVERVIEW_VIDEO_THUMBNAIL_URL`, a still with a
+     play button.
+  2. Clicking it runs `playOverviewPreview()`, which redraws the home card
+     with `OVERVIEW_VIDEO_GIF_URL` in its place (about a second, one server
+     round trip). Changing language returns to the thumbnail.
+  3. "Watch the full video", and clicking the GIF, open `OVERVIEW_VIDEO_URL`
+     in a new tab, with sound.
+
+  A video of 30 s or less can be shown whole this way (no sound, no pause).
+  To make the GIF: up to 30 s, about 360 px wide, 8 fps, under ~1 MB (30 s of
+  screen recording came to ~470 KB), the same shape as the thumbnail, and on
+  a public https URL (Apps Script only receives the `.gs` files). With ffmpeg:
+  `ffmpeg -i video.mp4 -t 30 -vf "fps=8,scale=360:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 overview-preview.gif`
+- **Language selector:** the version + language row is the card's last
+  section, right after the buttons, not a fixed footer pinned to the bottom
+  (fixed footers only take a primary and a secondary button, which can't be
+  laid out as "text left, box right"). The language box is a button that opens
+  the picker card (see item 4 above).
+- **Styling:** font sizes, background fills, button width and border colours
+  are not available in CardService, hence the rendered images above. Still not
+  matched: the blue header bar title (Gmail shows the add-on name there) and
+  the dropdown's look (it must stay Gmail's own dropdown to open a list).
+
+## Report flow: account settings (step 2)
+
+When the user submits a report, step 2 reads the account's add-on settings
+from the unification platform (public, no key):
+
+```
+GET {unification}/accounts/settings/plugin?domain=acme.org
+    -> { data: { forwardSuspiciousEmail: "a@acme.org,b@acme.org",
+                 isReportedEmailMoveToTrash: false,
+                 reportedEmailConfirmationMessage: "Thank you, ..." } }
+```
+
+| Field | Used for |
+| --- | --- |
+| `forwardSuspiciousEmail` | `email` in the eventdispatcher payload (who the report is forwarded to). |
+| `isReportedEmailMoveToTrash` | The **only** thing that decides whether the reported email is moved to trash. Only a literal `true` trashes. |
+| `reportedEmailConfirmationMessage` | The confirmation card text. Empty -> the localized `step2.defaultConfirmation`. Not localized by the backend. |
+
+If the call fails (non-200, no `data`), the report is **not** sent and the
+error card is shown. This replaced the AWS `getemail` route and, in step 2
+only, the `trashEmail` answer from `admindomainsgoogle`. Step 1 still calls
+`admindomainsgoogle` to route simulation emails. Runbook:
+[docs/runbooks/report-forwarding-and-trash.md](docs/runbooks/report-forwarding-and-trash.md).
 
 ## Localization
 

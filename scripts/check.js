@@ -62,6 +62,10 @@ if (loaded) {
     const pad = sandbox.VERSION_FOOTER_PADDING[sandbox.baseLanguage(code)];
     if (!pad || !Number.isInteger(pad.nbsp) || !Number.isInteger(pad.thin)) fail(`MESSAGES.${code}: no VERSION_FOOTER_PADDING entry in code.gs`);
   }
+  for (const code of Object.keys(sandbox.MESSAGES)) {
+    const hp = sandbox.HOME_FOOTER_PADDING && sandbox.HOME_FOOTER_PADDING[sandbox.baseLanguage(code)];
+    if (!hp || !Number.isInteger(hp.nbsp) || !Number.isInteger(hp.thin)) fail(`MESSAGES.${code}: no HOME_FOOTER_PADDING entry in code.gs`);
+  }
   const used = new Set();
   for (const f of sources) for (const m of read(f).matchAll(/\bt\("([^"]+)"/g)) used.add(m[1]);
   for (const k of used) if (!en.has(k)) fail(`t("${k}") used but not in MESSAGES.en`);
@@ -79,6 +83,26 @@ if (loaded) {
     });
   }
 
+  // 4b. home panel asset URLs (env.gs): empty, or https
+  for (const k of ["OVERVIEW_VIDEO_URL", "OVERVIEW_VIDEO_THUMBNAIL_URL", "OVERVIEW_VIDEO_GIF_URL", "CHIP_IMAGE_URL"]) {
+    const v = sandbox[k];
+    if (typeof v !== "string") fail(`env.gs: ${k} must be a string ("" when unset)`);
+    else if (v.trim() !== "" && !/^https:\/\/\S+$/.test(v.trim())) fail(`env.gs: ${k} must be empty or an https URL, got ${v}`);
+  }
+
+  // 4c. rendered home images (env.gs + assets/home, from npm run render:home)
+  const base = sandbox.HOME_IMAGES_BASE_URL;
+  if (typeof base !== "string" || (base.trim() !== "" && !/^https:\/\/\S+\/$/.test(base.trim()))) {
+    fail("env.gs: HOME_IMAGES_BASE_URL must be empty or an https URL ending in /");
+  } else if (base.trim() !== "") {
+    for (const lang of sandbox.HOME_IMAGE_LANGUAGES || []) {
+      if (!sandbox.MESSAGES[lang]) fail(`env.gs: HOME_IMAGE_LANGUAGES has ${lang}, which is not in MESSAGES`);
+      for (const name of ["chip-intro", "btn-report", "btn-how"]) {
+        if (!fs.existsSync(path.join(ROOT, "assets", "home", `${name}-${lang}.png`))) fail(`assets/home/${name}-${lang}.png missing: run npm run render:home`);
+      }
+    }
+  }
+
   // 5. environments
   const envs = Object.keys(sandbox.ENVIRONMENTS);
   const shape = (o) => JSON.stringify(Object.keys(o).sort());
@@ -87,7 +111,7 @@ if (loaded) {
     const cfg = sandbox.ENVIRONMENTS[name];
     if (shape(cfg) !== shape(sandbox.ENVIRONMENTS.prod)) fail(`ENVIRONMENTS.${name}: keys differ from prod`);
     if (regionShape(cfg) !== regionShape(sandbox.ENVIRONMENTS.prod)) fail(`ENVIRONMENTS.${name}: regions differ from prod`);
-    for (const [reg, ids] of Object.entries(cfg.regions)) for (const k of ["verifyUrl", "adminUrl", "serviceUrl"]) if (!/^[a-z0-9]{10}$/.test(ids[k] || "")) fail(`ENVIRONMENTS.${name}.regions.${reg}.${k}: not an API Gateway id`);
+    for (const [reg, ids] of Object.entries(cfg.regions)) for (const k of ["verifyUrl", "serviceUrl"]) if (!/^[a-z0-9]{10}$/.test(ids[k] || "")) fail(`ENVIRONMENTS.${name}.regions.${reg}.${k}: not an API Gateway id`);
     // the manifest the build would produce for this env must cover every prefix
     const prefixes = sandbox.environmentFetchPrefixes(name);
     const whitelist = [...prefixes, ...(manifest?.urlFetchWhitelist || []).filter((u) => !/execute-api|cybernut\.ai/.test(u))];
