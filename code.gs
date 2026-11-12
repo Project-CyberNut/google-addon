@@ -631,7 +631,7 @@ function homeFooterPadding(locale) {
  * version on the left, the language on the right. A fixed footer only takes
  * two Gmail buttons, so the language is an outlined button; clicking it runs
  * showLanguagePicker(), which redraws THIS card (no new page) with the real
- * dropdown at the top. With one language offered the button is disabled.
+ * dropdown at the bottom, just above this footer. With one language offered the button is disabled.
  */
 function homeFixedFooter(ctx) {
   var canPick = buildLanguageSelector(ctx) !== null;
@@ -686,30 +686,32 @@ function isSpamContext(e) {
  * "Home panel").
  *
  * Everywhere but Spam: pinned footer (version + language button), and with
- * options.showLanguagePicker the real dropdown at the top of the card.
- * In Spam, Gmail blocks reporting and a fixed footer there can't be clicked
- * (#40). So a Spam message gets the same card without the video and Report
- * Email, with the dropdown + version inside the card instead of pinned. Spam is detected here, not passed in,
+ * options.showLanguagePicker the real dropdown at the bottom of the card,
+ * just above the footer (the video is left out meanwhile, so it fits).
+ * In Spam a fixed footer can't be clicked (Gmail's invisible layer over the
+ * bottom of the panel, #40), so a Spam message gets the same card without
+ * the video, with the dropdown + version inside the card instead of pinned.
+ * Report Email stays: it sits mid-card, clear of that layer. Spam is detected here, not passed in,
  * so redraws (language change) keep it.
  */
 async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
   var spam = isSpamContext(e);
+  // Language dropdown shown on request (footer button): at the bottom, just
+  // above the pinned footer. The video is left out while it shows, so the
+  // dropdown fits in view; choosing a language runs onLanguageChange(), which
+  // redraws without the dropdown (and with the video).
+  var picker = !spam && options && options.showLanguagePicker ? buildLanguageSelector(ctx) : null;
 
   var body = CardService.newCardSection();
   addChipIntro(body, ctx.locale);
-  if (!spam) addOverviewVideo(body, Boolean(options && options.videoPlaying));
+  if (!spam && !picker) addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
-  if (e && !spam) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
+  if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
 
-  var builder = CardService.newCardBuilder();
-  // Language dropdown shown on request (footer button), at the top: Gmail
-  // scrolls back to the top when the card is redrawn, so it is in view.
-  // Choosing a language runs onLanguageChange(), which redraws without it.
-  var picker = !spam && options && options.showLanguagePicker ? buildLanguageSelector(ctx) : null;
+  var builder = CardService.newCardBuilder().addSection(body);
   if (picker) builder.addSection(CardService.newCardSection().addWidget(picker));
-  builder.addSection(body);
 
   // Spam: no fixed footer (its clicks are swallowed there, #40), so the
   // dropdown + version stay inside the card.
@@ -726,7 +728,7 @@ async function HomePage(e) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
       if (mailMessage.getThread().isInSpam()) {
-        // buildHomeCard() detects Spam itself: no video, no Report Email.
+        // buildHomeCard() detects Spam itself: no video, footer in the card.
         console.log('HomePage|spam message|home card without video');
         return await buildHomeCard(e);
       }

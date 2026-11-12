@@ -130,13 +130,14 @@ Panel" mock attached to CYB4-2596, top to bottom:
      `code.gs`, checked by `npm test`; same trick as the report cards'
      `VERSION_FOOTER_PADDING`);
    - clicking the language button redraws the same card (no new page) with
-     the real dropdown at the top; choosing a language saves it, as before,
-     and redraws the card in that language without the dropdown.
+     the real dropdown at the bottom, just above the footer (the video is
+     left out meanwhile so the dropdown fits in view); choosing a language
+     saves it, as before, and redraws the card in that language.
    With one language offered, the button is disabled. **No `Columns`:** on
    the dev add-on Gmail drew a `Columns` widget as a blank row.
 
-**Spam.** For a message in Spam the home card has no video and no Report
-Email (Gmail blocks reporting there), and no pinned footer (Gmail leaves an
+**Spam.** For a message in Spam the home card has no video and no pinned
+footer (Gmail leaves an
 invisible layer over the bottom of the panel there that swallows its clicks,
 #40): the real dropdown, with the version under it, is the card's last
 section instead. `buildHomeCard()` detects Spam itself,
