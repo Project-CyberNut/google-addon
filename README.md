@@ -128,7 +128,8 @@ Each one is `""` until it is set, and `npm test` rejects anything that is not ht
 | Constant | Empty means |
 | --- | --- |
 | `OVERVIEW_VIDEO_URL` | The whole video section is hidden. |
-| `OVERVIEW_VIDEO_THUMBNAIL_URL` | A "Watch the overview video" button shows instead of an image. |
+| `OVERVIEW_VIDEO_THUMBNAIL_URL` | The GIF shows straight away (or only the "Watch the full video" button, with no GIF either). |
+| `OVERVIEW_VIDEO_GIF_URL` | Clicking the thumbnail opens the full video in a new tab instead of playing in the panel. |
 | `CHIP_IMAGE_URL` | "Hi, I'm Chip." shows without the squirrel. |
 
 To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
@@ -138,13 +139,20 @@ To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
 cannot be built:
 - **Video:** it cannot play inside Gmail. Cards have no video widget or
   iframe, and Gmail opened links in a new tab even with `OpenAs.OVERLAY` (and
-  with `OnClose.RELOAD`, tried in #47). So the panel shows a short silent
-  looping GIF (`OVERVIEW_VIDEO_THUMBNAIL_URL`), and the image and the
-  "Watch the overview video" button open the full video in a new tab.
+  with `OnClose.RELOAD`, tried in #47). So the video plays as a silent looping
+  GIF in the panel:
+  1. At rest the panel shows `OVERVIEW_VIDEO_THUMBNAIL_URL`, a still with a
+     play button.
+  2. Clicking it runs `playOverviewPreview()`, which redraws the home card
+     with `OVERVIEW_VIDEO_GIF_URL` in its place (about a second, one server
+     round trip). Changing language returns to the thumbnail.
+  3. "Watch the full video", and clicking the GIF, open `OVERVIEW_VIDEO_URL`
+     in a new tab, with sound.
+
   A video of 30 s or less can be shown whole this way (no sound, no pause).
   To make the GIF: up to 30 s, about 360 px wide, 8 fps, under ~1 MB (30 s of
-  screen recording came to ~470 KB), hosted on a public https URL (Apps Script
-  only receives the `.gs` files). With ffmpeg:
+  screen recording came to ~470 KB), the same shape as the thumbnail, and on
+  a public https URL (Apps Script only receives the `.gs` files). With ffmpeg:
   `ffmpeg -i video.mp4 -t 30 -vf "fps=8,scale=360:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 overview-preview.gif`
 - **Language selector:** a fixed footer can only hold buttons. The language
   button opens a picker card. Choosing a language saves it, as before, and

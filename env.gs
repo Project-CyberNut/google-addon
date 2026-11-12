@@ -71,20 +71,25 @@ var DEFAULT_ENV = "prod";
  * or https (scripts/check.js). Images are loaded by Gmail, not UrlFetchApp,
  * so they need no whitelist entry.
  *
- *   OVERVIEW_VIDEO_URL           "See an overview of CyberNut" video. Opens
- *                                in a new tab (Gmail can't play it in the
+ *   OVERVIEW_VIDEO_URL           "See an overview of CyberNut" full video,
+ *                                opened in a new tab by "Watch the full
+ *                                video" (Gmail can't play video in the
  *                                panel). Empty hides the section.
- *   OVERVIEW_VIDEO_THUMBNAIL_URL Preview above the "Watch" button: a short
- *                                looping GIF, or a still image. Empty shows
- *                                only the button.
+ *   OVERVIEW_VIDEO_THUMBNAIL_URL Still with a play button, shown at rest.
+ *                                Clicking it starts the GIF in the panel.
+ *   OVERVIEW_VIDEO_GIF_URL       Silent looping GIF of the video (30 s or
+ *                                less, under ~1 MB). Keep it the same shape
+ *                                as the thumbnail so nothing jumps.
  *   CHIP_IMAGE_URL               Chip the squirrel beside "Hi, I'm Chip.".
  *                                Empty shows the greeting without the image.
  */
-// TEMP test video (CyberNut "Introducing Advanced Threat Search") and a 30s GIF
-// cut from it, served from this public repo (assets/). Before prod: confirm
-// the final video and move the GIF to CyberNut's own storage.
+// TEMP test video (CyberNut "Introducing Advanced Threat Search"), with a
+// thumbnail and a 30s GIF made from it, served from this public repo
+// (assets/). Before prod: confirm the final video and move both images to
+// CyberNut's own storage.
 var OVERVIEW_VIDEO_URL = "https://www.youtube.com/watch?v=dHMQR2qz5Ow";
-var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-preview.gif";
+var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-thumbnail.jpg";
+var OVERVIEW_VIDEO_GIF_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-preview.gif";
 var CHIP_IMAGE_URL = "";
 
 /** Memoised per execution. */
