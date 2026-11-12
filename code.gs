@@ -585,21 +585,32 @@ function homeButton(imageName, locale, label, functionName, filled) {
 }
 
 /**
- * Spam only (the pinned footer can't be clicked there): last section of the
- * home card, the real language dropdown, which opens in place (choosing a language runs onLanguageChange(), which saves it and
- * redraws the card in that language), with the version in small grey text
- * under it. Gmail can't do the mock's exact row: a fixed (pinned) footer only
- * takes buttons, not a dropdown, and Columns (needed to put the version
- * beside the dropdown) drew as a blank row on the dev add-on. With one
- * language offered there is nothing to pick, so the language shows as text.
+ * The language button ("【EN】 English  ⌄"): runs showLanguagePicker(), which
+ * redraws the same card (no new page) with the real dropdown at the bottom.
+ * Disabled, without the arrow, when only one language is offered.
+ */
+function homeLanguageButton(ctx) {
+  var canPick = buildLanguageSelector(ctx) !== null;
+  return CardService.newTextButton()
+    .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
+    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    .setDisabled(!canPick)
+    .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "showLanguagePicker" : "noopAction"));
+}
+
+/**
+ * Spam only: the footer row inside the card, looking like the pinned footer
+ * (version left, language button right, one line). A DecoratedText with an
+ * end button lays them out side by side without Columns (Columns drew blank
+ * on the dev add-on). Not pinned: in Spam, Gmail's invisible layer over the
+ * bottom of the panel swallows fixed-footer clicks (#40).
  */
 function homeLanguageSection(ctx) {
-  var muted = function (text) {
-    return CardService.newTextParagraph().setText('<font color="' + HOME_MUTED_COLOR + '">' + text + "</font>");
-  };
-  return CardService.newCardSection()
-    .addWidget(buildLanguageSelector(ctx, { compact: true }) || muted(localeOptionLabel(ctx.locale)))
-    .addWidget(muted(version));
+  return CardService.newCardSection().addWidget(
+    CardService.newDecoratedText()
+      .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>")
+      .setButton(homeLanguageButton(ctx))
+  );
 }
 
 /**
@@ -634,15 +645,8 @@ function homeFooterPadding(locale) {
  * dropdown at the bottom, just above this footer. With one language offered the button is disabled.
  */
 function homeFixedFooter(ctx) {
-  var canPick = buildLanguageSelector(ctx) !== null;
   return CardService.newFixedFooter()
-    .setPrimaryButton(
-      CardService.newTextButton()
-        .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
-        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-        .setDisabled(!canPick)
-        .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "showLanguagePicker" : "noopAction"))
-    )
+    .setPrimaryButton(homeLanguageButton(ctx))
     .setSecondaryButton(
       CardService.newTextButton()
         .setText(version + homeFooterPadding(ctx.locale) + "\u2060")
@@ -687,25 +691,25 @@ function isSpamContext(e) {
  *
  * Everywhere but Spam: pinned footer (version + language button), and with
  * options.showLanguagePicker the real dropdown at the bottom of the card,
- * just above the footer (the video is left out meanwhile, so it fits).
+ * just above the footer.
  * In Spam a fixed footer can't be clicked (Gmail's invisible layer over the
  * bottom of the panel, #40), so a Spam message gets the same card without
- * the video, with the dropdown + version inside the card instead of pinned.
+ * the video, with the version + language row inside the card instead of
+ * pinned.
  * Report Email stays: it sits mid-card, clear of that layer. Spam is detected here, not passed in,
  * so redraws (language change) keep it.
  */
 async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
   var spam = isSpamContext(e);
-  // Language dropdown shown on request (footer button): at the bottom, just
-  // above the pinned footer. The video is left out while it shows, so the
-  // dropdown fits in view; choosing a language runs onLanguageChange(), which
-  // redraws without the dropdown (and with the video).
-  var picker = !spam && options && options.showLanguagePicker ? buildLanguageSelector(ctx) : null;
+  // Language dropdown shown on request (the language button): at the bottom
+  // of the same card, just above the footer. Choosing a language runs
+  // onLanguageChange(), which redraws the card without it.
+  var picker = options && options.showLanguagePicker ? buildLanguageSelector(ctx) : null;
 
   var body = CardService.newCardSection();
   addChipIntro(body, ctx.locale);
-  if (!spam && !picker) addOverviewVideo(body, Boolean(options && options.videoPlaying));
+  if (!spam) addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
   if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
@@ -713,8 +717,8 @@ async function buildHomeCard(e, options) {
   var builder = CardService.newCardBuilder().addSection(body);
   if (picker) builder.addSection(CardService.newCardSection().addWidget(picker));
 
-  // Spam: no fixed footer (its clicks are swallowed there, #40), so the
-  // dropdown + version stay inside the card.
+  // Spam: no fixed footer (its clicks are swallowed there, #40); the same
+  // version + language row sits inside the card instead.
   if (spam) return builder.addSection(homeLanguageSection(ctx)).build();
   return builder.setFixedFooter(homeFixedFooter(ctx)).build();
 }
