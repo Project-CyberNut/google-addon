@@ -456,16 +456,35 @@ function hasUrl(value) {
 var HOME_TEXT_COLOR = "#1B1F3B";   // mock body text
 var HOME_MUTED_COLOR = "#4A4F66";  // mock footer text
 
+/** URL of a rendered home image (env.gs HOME_IMAGES_*), or null to fall back to text. */
+function homeImageUrl(name, locale) {
+  if (!hasUrl(HOME_IMAGES_BASE_URL)) return null;
+  var lang = baseLanguage(locale || "en");
+  if (HOME_IMAGE_LANGUAGES.indexOf(lang) === -1) return null;
+  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png";
+}
+
 function homeText(html) {
   return CardService.newTextParagraph()
     .setText('<font color="' + HOME_TEXT_COLOR + '">' + html + "</font>");
 }
 
 /**
- * "Hi, I'm Chip." block. The squirrel sits in a narrow column beside the
- * greeting; without CHIP_IMAGE_URL the greeting renders alone.
+ * "Hi, I'm Chip." block. Where a rendered image exists for the language it
+ * is shown as one image (exactly the mock), with the full text as alt text
+ * for screen readers. Otherwise it falls back to text: the squirrel in a
+ * narrow column beside the greeting (or the greeting alone without
+ * CHIP_IMAGE_URL).
  */
-function addChipIntro(section) {
+function addChipIntro(section, locale) {
+  var rendered = homeImageUrl("chip-intro", locale);
+  if (rendered) {
+    section.addWidget(CardService.newImage().setImageUrl(rendered).setAltText([
+      t("home.chipGreeting"), t("home.chipIntro"), t("home.keyPartHeading"),
+      t("home.keyPartBody"), t("home.spotOne"),
+    ].join(" ")));
+    return;
+  }
   var greeting = homeText("<b>" + t("home.chipGreeting") + "</b>");
 
   if (hasUrl(CHIP_IMAGE_URL)) {
@@ -560,6 +579,23 @@ async function playOverviewPreview(e) {
 }
 
 /**
+ * One of the two home buttons. CardService buttons can't be full width or
+ * take a border colour, so where a rendered image exists it is a clickable
+ * image of the mock's button (same action); otherwise a normal button.
+ */
+function homeButton(imageName, locale, label, functionName, filled) {
+  var action = CardService.newAction().setFunctionName(functionName);
+  var rendered = homeImageUrl(imageName, locale);
+  if (rendered) {
+    return CardService.newImage().setImageUrl(rendered).setAltText(label).setOnClickAction(action);
+  }
+  var button = CardService.newTextButton().setText(label).setOnClickAction(action);
+  return filled
+    ? button.setTextButtonStyle(CardService.TextButtonStyle.FILLED).setBackgroundColor("#C9402F")
+    : button.setTextButtonStyle(CardService.TextButtonStyle.OUTLINED);
+}
+
+/**
  * Bottom row from the mock: version on the left, the language dropdown on
  * the right, both vertically centred. A fixed footer can only hold buttons,
  * so this is the card's last section instead: it sits at the end of the
@@ -603,24 +639,11 @@ async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
 
   var body = CardService.newCardSection();
-  addChipIntro(body);
+  addChipIntro(body, ctx.locale);
   addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
-  if (e) {
-    body.addWidget(
-      CardService.newTextButton()
-        .setText(t("home.reportButton"))
-        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-        .setBackgroundColor("#C9402F")
-        .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"))
-    );
-  }
-  body.addWidget(
-    CardService.newTextButton()
-      .setText(t("home.howReportingWorks"))
-      .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-      .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))
-  );
+  if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
+  body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
 
   return CardService.newCardBuilder()
     .addSection(body)

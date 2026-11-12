@@ -127,6 +127,23 @@ Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
 footer border.
 
+**Rendered images (exact mock look).** CardService can't do font sizes,
+background fills, full-width buttons or border colours, so the Chip block and
+the two buttons are PNGs rendered from the mock's styles and the `home.*`
+text, one set per language (`assets/home/<name>-<lang>.png`):
+
+- The Chip block has the full text as alt text, for screen readers.
+- The button images are clickable and run the same actions (`handleStep1`,
+  `openLearnAddonLink`).
+- **After changing any `home.*` text, or adding a language:** add the
+  language to `HOME_IMAGE_LANGUAGES` in `env.gs`, run `npm run render:home`
+  (needs Google Chrome; `CHROME=/path` overrides), check the PNGs, and commit
+  them. `npm test` fails if a listed language is missing an image.
+- A language not in `HOME_IMAGE_LANGUAGES`, or an empty
+  `HOME_IMAGES_BASE_URL`, falls back to plain text and Gmail buttons.
+- The images load from `HOME_IMAGES_BASE_URL` (the `dev` branch of this
+  public repo for now). Move them to CyberNut's own storage before prod.
+
 **Assets** live in `env.gs` as top-level constants, the same in prod and dev.
 Each one is `""` until it is set, and `npm test` rejects anything that is not https:
 
@@ -163,10 +180,10 @@ cannot be built:
   can only hold buttons, not a dropdown. The mock's dropdown matters more, so
   the version + language row is the card's last section instead: it sits right
   after the buttons rather than pinned to the bottom.
-- **Styling:** font sizes (the 26 px "Hi, I'm Chip."), the light blue
-  background behind the Chip block, the blue header bar text (Gmail shows
-  the add-on name there), button width and the outlined button's border
-  colour are not available in CardService.
+- **Styling:** font sizes, background fills, button width and border colours
+  are not available in CardService, hence the rendered images above. Still not
+  matched: the blue header bar title (Gmail shows the add-on name there) and
+  the dropdown's look (it must stay Gmail's own dropdown to open a list).
 
 ## Report flow: account settings (step 2)
 

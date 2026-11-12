@@ -12,6 +12,7 @@
     "build:dev": "node scripts/build.js dev",
     "build:prod": "node scripts/build.js prod",
     "push:dev": "node scripts/push.js dev",
-    "push:prod": "node scripts/push.js prod"
+    "push:prod": "node scripts/push.js prod",
+    "render:home": "node scripts/render-home-images.js"
   }
 }
