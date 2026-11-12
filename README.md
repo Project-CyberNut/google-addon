@@ -137,7 +137,11 @@ To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
 
 **Gmail limits.** Add-ons only render Google's card widgets, so some of the mock
 cannot be built:
-- **Video:** it cannot play inside the panel. Clicking it opens a popup over Gmail.
+- **Video:** it cannot play inside the panel. Clicking it opens a popup over Gmail
+  (`OpenAs.OVERLAY` + `OnClose.RELOAD`; with `OVERLAY` alone Gmail opened a
+  normal tab). Closing the popup reloads the home card. Set `OVERVIEW_VIDEO_URL`
+  to the player-only link, e.g. `https://www.youtube.com/embed/<id>?autoplay=1`,
+  not the `/watch` page.
 - **Language selector:** a fixed footer can only hold buttons. The language
   button opens a picker card. Choosing a language saves it, as before, and
   returns to the home card in that language. With one language offered, the
