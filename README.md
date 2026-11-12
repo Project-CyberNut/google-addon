@@ -113,14 +113,13 @@ every URL it will fetch.
 The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
 Panel" mock attached to CYB4-2596, top to bottom:
 
-1. Header: "Suspicious Email Reporting Tool".
-2. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
+1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
    (`home.*` keys in `i18n.gs`).
-3. "See an overview of CyberNut": a video thumbnail, or a "Watch the overview
+2. "See an overview of CyberNut": a video thumbnail, or a "Watch the overview
    video" button when there is no thumbnail.
-4. **Report Email** (only when an email is open) and **How reporting works**
+3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-5. Fixed footer: version on the left, current language (e.g. `【EN】 English ▾`)
+4. Fixed footer: version on the left, current language (e.g. `【EN】 English ▾`)
    on the right.
 
 **Assets** live in `env.gs` as top-level constants, the same in prod and dev.
@@ -137,7 +136,11 @@ To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
 
 **Gmail limits.** Add-ons only render Google's card widgets, so some of the mock
 cannot be built:
-- **Video:** it cannot play inside the panel. Clicking it opens a popup over Gmail.
+- **Video:** it cannot play inside the panel. Clicking it opens a popup over Gmail
+  (`OpenAs.OVERLAY` + `OnClose.RELOAD`; with `OVERLAY` alone Gmail opened a
+  normal tab). Closing the popup reloads the home card. Set `OVERVIEW_VIDEO_URL`
+  to the player-only link, e.g. `https://www.youtube.com/embed/<id>?autoplay=1`,
+  not the `/watch` page.
 - **Language selector:** a fixed footer can only hold buttons. The language
   button opens a picker card. Choosing a language saves it, as before, and
   returns to the home card in that language. With one language offered, the

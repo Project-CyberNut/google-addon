@@ -72,14 +72,16 @@ var DEFAULT_ENV = "prod";
  * so they need no whitelist entry.
  *
  *   OVERVIEW_VIDEO_URL           "See an overview of CyberNut" video, opened
- *                                in a popup over Gmail. Empty hides the section.
+ *                                in a popup over Gmail. Use the player-only
+ *                                link (YouTube: /embed/<id>?autoplay=1), not
+ *                                /watch. Empty hides the section.
  *   OVERVIEW_VIDEO_THUMBNAIL_URL Clickable thumbnail for that video. Empty
  *                                shows a "Watch the video" button instead.
  *   CHIP_IMAGE_URL               Chip the squirrel beside "Hi, I'm Chip.".
  *                                Empty shows the greeting without the image.
  */
 // TEMP test video (CyberNut "Introducing Advanced Threat Search") - confirm the final overview video before merging.
-var OVERVIEW_VIDEO_URL = "https://www.youtube.com/watch?v=dHMQR2qz5Ow";
+var OVERVIEW_VIDEO_URL = "https://www.youtube.com/embed/dHMQR2qz5Ow?autoplay=1";
 var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://img.youtube.com/vi/dHMQR2qz5Ow/maxresdefault.jpg";
 var CHIP_IMAGE_URL = "";
 

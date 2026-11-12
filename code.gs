@@ -493,7 +493,10 @@ function overviewVideoSection() {
   if (!hasUrl(OVERVIEW_VIDEO_URL)) return null;
   var openVideo = CardService.newOpenLink()
     .setUrl(OVERVIEW_VIDEO_URL.trim())
-    .setOpenAs(CardService.OpenAs.OVERLAY);
+    .setOpenAs(CardService.OpenAs.OVERLAY)
+    // Gmail opened OVERLAY alone as a full YouTube tab. With RELOAD it tracks
+    // the window, so it opens a popup; closing it just redraws the home card.
+    .setOnClose(CardService.OnClose.RELOAD);
 
   var widget = hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL)
     ? CardService.newImage()
@@ -570,8 +573,8 @@ async function openLanguagePicker(e) {
 async function buildHomeCard(e) {
   const ctx = await getLanguageContext(e);
 
+  // No card header: the panel opens straight on the Chip block.
   var builder = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle(t("home.headerTitle")))
     .addSection(chipIntroSection());
 
   var videoSection = overviewVideoSection();
