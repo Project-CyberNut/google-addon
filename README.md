@@ -122,15 +122,29 @@ Panel" mock attached to CYB4-2596, top to bottom:
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Bottom row, on one line: the version on the left, the language box on the
-   right ("【EN】 English ⌄"), exactly as in the mock. It's a rendered image
-   (`footer-<lang>.png`); clicking it opens a small picker card with the real
-   dropdown, and choosing a language saves it, as before, and returns to the
-   home card in that language. With one language offered it shows
-   `footer-single-<lang>.png` (no arrow) and does nothing when clicked.
-   **No `Columns`:** on the dev add-on Gmail drew a `Columns` widget holding
-   the version and a dropdown as a blank row, so the add-on doesn't use
-   `Columns` anywhere.
+4. Pinned footer, always at the bottom of the panel: the version on the left
+   and the language button ("【EN】 English ⌄") on the right. A fixed footer
+   only takes two Gmail buttons (no dropdown, text or image), so:
+   - the version is a disabled borderless button, pushed to the left with
+     invisible padding measured per language (`HOME_FOOTER_PADDING` in
+     `code.gs`, checked by `npm test`; same trick as the report cards'
+     `VERSION_FOOTER_PADDING`);
+   - clicking the language button redraws the same card (no new page) with
+     the language list open at the bottom, just above the footer (one row
+     per language, the current one bold with a check; the button shows ⌃).
+     Choosing a language saves it, as before, and redraws the card in that
+     language with the list closed; clicking the button again closes it.
+     Gmail can't open a real dropdown from a footer button, so this list is
+     the dropdown.
+   With one language offered, the button is disabled. **No `Columns`:** on
+   the dev add-on Gmail drew a `Columns` widget as a blank row.
+
+**Spam.** For a message in Spam the home card has no video and no pinned
+footer (Gmail leaves an
+invisible layer over the bottom of the panel there that swallows its clicks,
+#40): the same row (version left, language button right) is the card's last
+section instead, as a `DecoratedText` with an end button. `buildHomeCard()` detects Spam itself,
+so a language change in Spam keeps this layout.
 
 Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
@@ -144,10 +158,6 @@ text, one set per language (`assets/home/<name>-<lang>.png`):
 - The Chip block has the full text as alt text, for screen readers.
 - The button images are clickable and run the same actions (`handleStep1`,
   `openLearnAddonLink`).
-- **The footer images show the version.** After every version bump in
-  `package.json`, run `npm run render:home` and commit the PNGs:
-  `npm test` fails until `assets/home/footer.json` matches. Image URLs carry
-  `?v=<version>` so Gmail doesn't show a cached old footer.
 - **After changing any `home.*` text, or adding a language:** add the
   language to `HOME_IMAGE_LANGUAGES` in `env.gs`, run `npm run render:home`
   (needs Google Chrome; `CHROME=/path` overrides), check the PNGs, and commit

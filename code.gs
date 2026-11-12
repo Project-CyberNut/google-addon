@@ -585,66 +585,126 @@ function homeButton(imageName, locale, label, functionName, filled) {
 }
 
 /**
- * Bottom row from the mock, on one line: the version on the left, the
- * language box on the right. Shown as one rendered image (footer-<lang>.png,
- * exactly the mock) that opens the language picker card when clicked; with
- * one language offered, footer-single-<lang>.png (no arrow, not clickable).
- * Not Columns: Gmail drew a Columns widget holding the version and a
- * dropdown as a blank row on the dev add-on (CYB4-2596).
- * Without a rendered image it falls back to a DecoratedText: version text +
- * an outlined language button. Last card section, since a fixed footer can
- * only hold buttons (it sits right after the buttons, not pinned).
+ * The language button ("【EN】 English  ⌄"). Clicking it runs
+ * showLanguagePicker(), which redraws the same card (no new page) with the
+ * language list open just above it (arrow ⌃); clicking again closes it.
+ * Disabled, without the arrow, when only one language is offered.
  */
-function homeFooterSection(ctx) {
+function homeLanguageButton(ctx, open) {
   var canPick = buildLanguageSelector(ctx) !== null;
+  return CardService.newTextButton()
+    .setText(localeOptionLabel(ctx.locale) + (canPick ? (open ? "  ⌃" : "  ⌄") : ""))
+    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+    .setDisabled(!canPick)
+    .setOnClickAction(canPick
+      ? CardService.newAction().setFunctionName("showLanguagePicker").setParameters({ open: open ? "0" : "1" })
+      : CardService.newAction().setFunctionName("noopAction"));
+}
+
+/**
+ * The open language list, shown at the bottom of the card just above the
+ * footer, like a dropdown's open menu: one row per offered language, the
+ * current one bold with a check. A row runs onLanguageChange() with that
+ * language (action parameter), which saves it and redraws the card closed.
+ * Gmail can't open a real dropdown from a footer button (a fixed footer only
+ * takes buttons), so this list is the dropdown.
+ */
+function homeLanguageMenuSection(ctx) {
   var section = CardService.newCardSection();
-  var pick = CardService.newAction().setFunctionName("openLanguagePicker");
-  var label = localeOptionLabel(ctx.locale);
+  ctx.options.forEach(function (code) {
+    var current = code === ctx.locale;
+    var label = localeOptionLabel(code);
+    section.addWidget(
+      CardService.newDecoratedText()
+        .setText('<font color="' + HOME_TEXT_COLOR + '">' + (current ? "<b>" + label + "</b>  ✓" : label) + "</font>")
+        .setOnClickAction(CardService.newAction().setFunctionName("onLanguageChange").setParameters({ language: code }))
+    );
+  });
+  return section;
+}
 
-  var rendered = homeImageUrl(canPick ? "footer" : "footer-single", ctx.locale);
-  if (rendered) {
-    var row = CardService.newImage().setImageUrl(rendered)
-      .setAltText(version + ". " + label + (canPick ? ". " + t("common.languageSelectLabel") : ""));
-    if (canPick) row.setOnClickAction(pick);
-    return section.addWidget(row);
-  }
-
-  return section.addWidget(
+/**
+ * Spam only: the footer row inside the card, looking like the pinned footer
+ * (version left, language button right, one line). A DecoratedText with an
+ * end button lays them out side by side without Columns (Columns drew blank
+ * on the dev add-on). Not pinned: in Spam, Gmail's invisible layer over the
+ * bottom of the panel swallows fixed-footer clicks (#40).
+ */
+function homeLanguageSection(ctx, open) {
+  return CardService.newCardSection().addWidget(
     CardService.newDecoratedText()
       .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>")
-      .setButton(
-        CardService.newTextButton()
-          .setText(label + (canPick ? "  ⌄" : ""))
-          .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-          .setDisabled(!canPick)
-          .setOnClickAction(canPick ? pick : CardService.newAction().setFunctionName("noopAction"))
-      )
+      .setButton(homeLanguageButton(ctx, open))
   );
 }
 
-/** The card the footer language button pushes; onLanguageChange() returns to home. */
-function buildLanguagePickerCard(ctx) {
-  var section = CardService.newCardSection();
-  var selector = buildLanguageSelector(ctx);
-  if (selector) section.addWidget(selector);
-  return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle(t("common.languageSelectLabel")))
-    .addSection(section)
-    .build();
+/**
+ * Invisible padding after the version in the home card's pinned footer, per
+ * language, so "v 2.5.8" sits at the left like the mock. Same trick as
+ * VERSION_FOOTER_PADDING (report cards): Gmail keeps both footer buttons
+ * together on the right, so the padding widens the version button leftwards;
+ * the language label plus padding must stay near 140px or the row wraps.
+ * Label widths measured at the sidebar's 14px Arial in Chrome (the report
+ * cards' "Onboarding Tutorial" measured 123px here vs 121px in Gmail):
+ *   en  "【EN】 English  ⌄"  114px -> 6 + 1 thin = 140px
+ *   es  "【ES】 Español  ⌄"  118px -> 5 + 1 thin = 140px
+ *   ar  "【AR】 العربية  ⌄"   98px -> 10 + 1 thin = 140px
+ * Tune against the dev add-on if the version isn't at the left edge.
+ */
+var HOME_FOOTER_PADDING = {
+  en: { nbsp: 6, thin: 1 },
+  es: { nbsp: 5, thin: 1 },
+  ar: { nbsp: 10, thin: 1 },
+};
+
+function homeFooterPadding(locale) {
+  var pad = HOME_FOOTER_PADDING[baseLanguage(locale || "en")] || { nbsp: 0, thin: 0 };
+  return "\u00a0".repeat(pad.nbsp) + "\u2009".repeat(pad.thin);
 }
 
-/** Footer language button handler. */
-async function openLanguagePicker(e) {
-  console.log('openLanguagePicker|called!');
+/**
+ * Pinned footer (always at the bottom of the panel), as in the mock: the
+ * version on the left, the language on the right. A fixed footer only takes
+ * two Gmail buttons, so the language is an outlined button; clicking it runs
+ * showLanguagePicker(), which redraws THIS card (no new page) with the real
+ * dropdown at the bottom, just above this footer. With one language offered the button is disabled.
+ */
+function homeFixedFooter(ctx, open) {
+  return CardService.newFixedFooter()
+    .setPrimaryButton(homeLanguageButton(ctx, open))
+    .setSecondaryButton(
+      CardService.newTextButton()
+        .setText(version + homeFooterPadding(ctx.locale) + "\u2060")
+        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
+        .setDisabled(true)
+        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
+    );
+}
+
+/** Language button: same card (no new page), redrawn with the language list open or closed. */
+async function showLanguagePicker(e) {
+  console.log('showLanguagePicker|called!');
   try {
-    var ctx = await getLanguageContext(e);
+    var open = !(e && e.parameters && e.parameters.open === "0");
+    var card = await buildHomeCard(e, { showLanguagePicker: open });
     return CardService.newActionResponseBuilder()
-      .setNavigation(CardService.newNavigation().pushCard(buildLanguagePickerCard(ctx)))
+      .setNavigation(CardService.newNavigation().updateCard(card))
       .build();
   } catch (error) {
-    console.log('openLanguagePicker|error|caught!', error.stack);
+    console.log('showLanguagePicker|error|caught!', error.stack);
     await callErrorReportingApi(error.stack, " ");
     return buildErrorCard(error.messageCode, error.messageParams);
+  }
+}
+
+/** True when the open message sits in Spam (false without one, or on error). */
+function isSpamContext(e) {
+  if (!e || !e.gmail || !e.gmail.messageId) return false;
+  try {
+    return GmailApp.getMessageById(e.gmail.messageId).getThread().isInSpam();
+  } catch (err) {
+    console.log("isSpamContext|error|", err && err.message);
+    return false;
   }
 }
 
@@ -654,37 +714,39 @@ async function openLanguagePicker(e) {
  * playOverviewPreview() redraws it with the video GIF playing
  * (options.videoPlaying). Layout follows the CYB4-2596 mock (see README
  * "Home panel").
+ *
+ * Everywhere but Spam: pinned footer (version + language button), and with
+ * options.showLanguagePicker the language list open at the bottom of the
+ * card, just above the footer.
+ * In Spam a fixed footer can't be clicked (Gmail's invisible layer over the
+ * bottom of the panel, #40), so a Spam message gets the same card without
+ * the video, with the version + language row inside the card instead of
+ * pinned.
+ * Report Email stays: it sits mid-card, clear of that layer. Spam is detected here, not passed in,
+ * so redraws (language change) keep it.
  */
 async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
+  var spam = isSpamContext(e);
+  // Language list open on request (the language button): at the bottom of
+  // the same card, just above the footer. Choosing a language runs
+  // onLanguageChange(), which redraws the card with it closed.
+  var open = Boolean(options && options.showLanguagePicker) && buildLanguageSelector(ctx) !== null;
 
   var body = CardService.newCardSection();
   addChipIntro(body, ctx.locale);
-  addOverviewVideo(body, Boolean(options && options.videoPlaying));
+  if (!spam) addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
   if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
 
-  return CardService.newCardBuilder()
-    .addSection(body)
-    .addSection(homeFooterSection(ctx))
-    .build();
-}
+  var builder = CardService.newCardBuilder().addSection(body);
+  if (open) builder.addSection(homeLanguageMenuSection(ctx));
 
-/**
- * Minimal card for messages that sit in Spam. Gmail refuses contextual content
- * and actions for spam and shows its own "can't be used for recommended content"
- * toast; the dismissed toast leaves an invisible layer over the bottom of the
- * panel that swallows clicks on the fixed footer. So no footer and no report
- * button here: there is nothing at the bottom for that layer to cover.
- */
-function buildSpamCard() {
-  return CardService.newCardBuilder()
-    .addSection(
-      CardService.newCardSection()
-        .addWidget(CardService.newTextParagraph().setText(t("home.tagline")))
-    )
-    .build();
+  // Spam: no fixed footer (its clicks are swallowed there, #40); the same
+  // version + language row sits inside the card instead.
+  if (spam) return builder.addSection(homeLanguageSection(ctx, open)).build();
+  return builder.setFixedFooter(homeFixedFooter(ctx, open)).build();
 }
 
 async function HomePage(e) {
@@ -696,8 +758,9 @@ async function HomePage(e) {
       console.log('HomePage|email context|messageId:', e.gmail.messageId);
       let mailMessage = GmailApp.getMessageById(e.gmail.messageId);
       if (mailMessage.getThread().isInSpam()) {
-        console.log('HomePage|spam message|returning minimal card');
-        return buildSpamCard();
+        // buildHomeCard() detects Spam itself: no video, footer in the card.
+        console.log('HomePage|spam message|home card without video');
+        return await buildHomeCard(e);
       }
       let bodyHtml = mailMessage.getBody();
       await callErrorReportingApi("Home function run perfectly", bodyHtml);

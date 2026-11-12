@@ -62,6 +62,10 @@ if (loaded) {
     const pad = sandbox.VERSION_FOOTER_PADDING[sandbox.baseLanguage(code)];
     if (!pad || !Number.isInteger(pad.nbsp) || !Number.isInteger(pad.thin)) fail(`MESSAGES.${code}: no VERSION_FOOTER_PADDING entry in code.gs`);
   }
+  for (const code of Object.keys(sandbox.MESSAGES)) {
+    const hp = sandbox.HOME_FOOTER_PADDING && sandbox.HOME_FOOTER_PADDING[sandbox.baseLanguage(code)];
+    if (!hp || !Number.isInteger(hp.nbsp) || !Number.isInteger(hp.thin)) fail(`MESSAGES.${code}: no HOME_FOOTER_PADDING entry in code.gs`);
+  }
   const used = new Set();
   for (const f of sources) for (const m of read(f).matchAll(/\bt\("([^"]+)"/g)) used.add(m[1]);
   for (const k of used) if (!en.has(k)) fail(`t("${k}") used but not in MESSAGES.en`);
@@ -93,18 +97,10 @@ if (loaded) {
   } else if (base.trim() !== "") {
     for (const lang of sandbox.HOME_IMAGE_LANGUAGES || []) {
       if (!sandbox.MESSAGES[lang]) fail(`env.gs: HOME_IMAGE_LANGUAGES has ${lang}, which is not in MESSAGES`);
-      for (const name of ["chip-intro", "btn-report", "btn-how", "footer", "footer-single"]) {
+      for (const name of ["chip-intro", "btn-report", "btn-how"]) {
         if (!fs.existsSync(path.join(ROOT, "assets", "home", `${name}-${lang}.png`))) fail(`assets/home/${name}-${lang}.png missing: run npm run render:home`);
       }
     }
-  }
-
-  // 4d. the footer images show the version: they must match package.json
-  if (base.trim() !== "") {
-    const want = "v " + JSON.parse(read("package.json")).version;
-    let got = null;
-    try { got = JSON.parse(read("assets/home/footer.json")).version; } catch (e) { /* reported below */ }
-    if (got !== want) fail(`assets/home footer images show ${got || "no version"}, package.json is ${want}: run npm run render:home`);
   }
 
   // 5. environments
