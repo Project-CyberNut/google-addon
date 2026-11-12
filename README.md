@@ -130,8 +130,12 @@ Panel" mock attached to CYB4-2596, top to bottom:
      `code.gs`, checked by `npm test`; same trick as the report cards'
      `VERSION_FOOTER_PADDING`);
    - clicking the language button redraws the same card (no new page) with
-     the real dropdown at the bottom, just above the footer; choosing a
-     language saves it, as before, and redraws the card in that language.
+     the language list open at the bottom, just above the footer (one row
+     per language, the current one bold with a check; the button shows ⌃).
+     Choosing a language saves it, as before, and redraws the card in that
+     language with the list closed; clicking the button again closes it.
+     Gmail can't open a real dropdown from a footer button, so this list is
+     the dropdown.
    With one language offered, the button is disabled. **No `Columns`:** on
    the dev add-on Gmail drew a `Columns` widget as a blank row.
 

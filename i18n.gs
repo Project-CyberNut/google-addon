@@ -572,7 +572,8 @@ async function onLanguageChange(e) {
   var ctx = await getLanguageContext(e);
   // The dropdown value is the backend's own code; keep it verbatim, since
   // the PATCH accepts only codes from the account's supported list.
-  var raw = readFormInput(e, "language");
+  // From the home card's language menu (action parameter), else a dropdown.
+  var raw = (e && e.parameters && e.parameters.language) || readFormInput(e, "language");
   var chosen = raw && ctx.options.indexOf(raw) !== -1 ? raw : null;
   console.log("onLanguageChange|", { raw: raw, chosen: chosen, offered: ctx.options });
 
