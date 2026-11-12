@@ -108,6 +108,43 @@ and sets `addOns.common.name` per environment ("CyberNut Reporting Tool" /
 Run `debugEnvironment()` from the editor to log the active environment and
 every URL it will fetch.
 
+## Home panel (CYB4-2596)
+
+The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
+Panel" mock attached to CYB4-2596, top to bottom:
+
+1. Header: "Suspicious Email Reporting Tool".
+2. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
+   (`home.*` keys in `i18n.gs`).
+3. "See an overview of CyberNut": a video thumbnail, or a "Watch the overview
+   video" button when there is no thumbnail.
+4. **Report Email** (only when an email is open) and **How reporting works**
+   (opens the training onboarding page, as "Onboarding Tutorial" did).
+5. Fixed footer: version on the left, current language (e.g. `【EN】 English ▾`)
+   on the right.
+
+**Assets** live in `env.gs` as top-level constants, the same in prod and dev.
+Each one is `""` until it is set, and `npm test` rejects anything that is not https:
+
+| Constant | Empty means |
+| --- | --- |
+| `OVERVIEW_VIDEO_URL` | The whole video section is hidden. |
+| `OVERVIEW_VIDEO_THUMBNAIL_URL` | A "Watch the overview video" button shows instead of an image. |
+| `CHIP_IMAGE_URL` | "Hi, I'm Chip." shows without the squirrel. |
+
+To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
+`npm test`, merge to `dev`, and check it in the Cybernut Dev add-on before `main`.
+
+**Gmail limits.** Add-ons only render Google's card widgets, so some of the mock
+cannot be built:
+- **Video:** it cannot play inside the panel. Clicking it opens a popup over Gmail.
+- **Language selector:** a fixed footer can only hold buttons. The language
+  button opens a picker card. Choosing a language saves it, as before, and
+  returns to the home card in that language. With one language offered, the
+  button is disabled.
+- **Styling:** font sizes, background fills, the dashed video border and
+  full-width buttons are not available.
+
 ## Report flow: account settings (step 2)
 
 When the user submits a report, step 2 reads the account's add-on settings

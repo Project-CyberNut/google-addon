@@ -79,6 +79,13 @@ if (loaded) {
     });
   }
 
+  // 4b. home panel asset URLs (env.gs): empty, or https
+  for (const k of ["OVERVIEW_VIDEO_URL", "OVERVIEW_VIDEO_THUMBNAIL_URL", "CHIP_IMAGE_URL"]) {
+    const v = sandbox[k];
+    if (typeof v !== "string") fail(`env.gs: ${k} must be a string ("" when unset)`);
+    else if (v.trim() !== "" && !/^https:\/\/\S+$/.test(v.trim())) fail(`env.gs: ${k} must be empty or an https URL, got ${v}`);
+  }
+
   // 5. environments
   const envs = Object.keys(sandbox.ENVIRONMENTS);
   const shape = (o) => JSON.stringify(Object.keys(o).sort());

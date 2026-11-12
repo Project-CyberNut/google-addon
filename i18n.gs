@@ -63,6 +63,16 @@ var MESSAGES = {
     },
     home: {
       tagline: "Suspicious content or sender? Report it for further analysis.",
+      headerTitle: "Suspicious Email Reporting Tool",
+      chipGreeting: "Hi, I'm Chip.",
+      chipAlt: "Chip, the blue squirrel",
+      chipIntro: "I am part of your school's cybersecurity awareness program.",
+      keyPartHeading: "You're a key part of your school's security.",
+      keyPartBody: "Your IT team can't see every suspicious email, but you can.",
+      spotOne: "Spot one? Open it, click the blue squirrel, then press Report Email below. It goes to your IT team for further analysis. Not sure? Report it anyway.",
+      overviewTitle: "See an overview of CyberNut",
+      overviewWatch: "Watch the overview video",
+      howReportingWorks: "How reporting works",
       reportButton: "Report Email",
       onboardingButton: "Onboarding Tutorial",
     },
@@ -103,6 +113,16 @@ var MESSAGES = {
     },
     home: {
       tagline: "¿Contenido o remitente sospechoso? Repórtalo para un análisis más detallado.",
+      headerTitle: "Herramienta para reportar correos sospechosos",
+      chipGreeting: "Hola, soy Chip.",
+      chipAlt: "Chip, la ardilla azul",
+      chipIntro: "Formo parte del programa de concientización sobre ciberseguridad de tu escuela.",
+      keyPartHeading: "Eres una parte clave de la seguridad de tu escuela.",
+      keyPartBody: "Tu equipo de TI no puede ver todos los correos sospechosos, pero tú sí.",
+      spotOne: "¿Detectaste uno? Ábrelo, haz clic en la ardilla azul y luego presiona Reportar correo abajo. Se enviará a tu equipo de TI para un análisis más detallado. ¿No estás seguro? Repórtalo de todos modos.",
+      overviewTitle: "Mira una presentación de CyberNut",
+      overviewWatch: "Ver el video de presentación",
+      howReportingWorks: "Cómo funcionan los reportes",
       reportButton: "Reportar correo",
       onboardingButton: "Tutorial de inicio",
     },
@@ -143,6 +163,16 @@ var MESSAGES = {
     },
     home: {
       tagline: "محتوى أو مُرسِل مشبوه؟ أبلغ عنه لتحليله بشكل أعمق.",
+      headerTitle: "أداة الإبلاغ عن الرسائل المشبوهة",
+      chipGreeting: "مرحبًا، أنا تشيب.",
+      chipAlt: "تشيب، السنجاب الأزرق",
+      chipIntro: "أنا جزء من برنامج التوعية بالأمن السيبراني في مدرستك.",
+      keyPartHeading: "أنت جزء أساسي من أمن مدرستك.",
+      keyPartBody: "لا يستطيع فريق تقنية المعلومات رؤية كل بريد مشبوه، لكنك تستطيع.",
+      spotOne: "هل لاحظت بريدًا مشبوهًا؟ افتحه، وانقر على السنجاب الأزرق، ثم اضغط على «الإبلاغ عن البريد» أدناه. سيُرسَل إلى فريق تقنية المعلومات لتحليله بشكل أعمق. لست متأكدًا؟ أبلغ عنه على أي حال.",
+      overviewTitle: "شاهد نظرة عامة على CyberNut",
+      overviewWatch: "شاهد الفيديو التعريفي",
+      howReportingWorks: "كيف يعمل الإبلاغ",
       reportButton: "الإبلاغ عن البريد",
       onboardingButton: "الدرس التمهيدي",
     },
@@ -561,9 +591,11 @@ async function onLanguageChange(e) {
   var saved = false;
   if (ctx.identity) saved = setPreferredLanguage(ctx.identity, chosen);
 
+  // Picked on the pushed picker card (openLanguagePicker): back to the root
+  // home card, redrawn in the new language.
   var card = await buildHomeCard(e);
   return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(card))
+    .setNavigation(CardService.newNavigation().popToRoot().updateCard(card))
     .setNotification(CardService.newNotification().setText(
       saved ? t("language.updated") : t("language.savedLocallyOnly")
     ))

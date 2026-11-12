@@ -66,6 +66,23 @@ var ENVIRONMENTS = {
 
 var DEFAULT_ENV = "prod";
 
+/**
+ * Home panel assets (CYB4-2596), the same in prod and dev. Each must be empty
+ * or https (scripts/check.js). Images are loaded by Gmail, not UrlFetchApp,
+ * so they need no whitelist entry.
+ *
+ *   OVERVIEW_VIDEO_URL           "See an overview of CyberNut" video, opened
+ *                                in a popup over Gmail. Empty hides the section.
+ *   OVERVIEW_VIDEO_THUMBNAIL_URL Clickable thumbnail for that video. Empty
+ *                                shows a "Watch the video" button instead.
+ *   CHIP_IMAGE_URL               Chip the squirrel beside "Hi, I'm Chip.".
+ *                                Empty shows the greeting without the image.
+ */
+// TEMP test video (CyberNut "Introducing Advanced Threat Search") - confirm the final overview video before merging.
+var OVERVIEW_VIDEO_URL = "https://www.youtube.com/watch?v=dHMQR2qz5Ow";
+var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://img.youtube.com/vi/dHMQR2qz5Ow/maxresdefault.jpg";
+var CHIP_IMAGE_URL = "";
+
 /** Memoised per execution. */
 var currentEnvMemo = null;
 
