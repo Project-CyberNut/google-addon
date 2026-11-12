@@ -461,7 +461,8 @@ function homeImageUrl(name, locale) {
   if (!hasUrl(HOME_IMAGES_BASE_URL)) return null;
   var lang = baseLanguage(locale || "en");
   if (HOME_IMAGE_LANGUAGES.indexOf(lang) === -1) return null;
-  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png";
+  // ?v= busts Gmail's image cache when a release re-renders the images.
+  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png?v=" + encodeURIComponent(version);
 }
 
 function homeText(html) {
@@ -585,28 +586,39 @@ function homeButton(imageName, locale, label, functionName, filled) {
 
 /**
  * Bottom row from the mock, on one line: the version on the left, the
- * language on the right. Built as a DecoratedText (text + end button), not
- * Columns: Gmail drew a Columns widget holding the version and a dropdown
- * as a blank row on the dev add-on (CYB4-2596). A dropdown can't be a
- * DecoratedText's end widget, so the language is an outlined button styled
- * like the mock's box ("【EN】 English ⌄"); it opens a small picker card
- * with the real dropdown, and onLanguageChange() comes back to this card.
- * With one language offered there is nothing to pick: the button is
- * disabled and has no arrow. Last card section, since a fixed footer can
+ * language box on the right. Shown as one rendered image (footer-<lang>.png,
+ * exactly the mock) that opens the language picker card when clicked; with
+ * one language offered, footer-single-<lang>.png (no arrow, not clickable).
+ * Not Columns: Gmail drew a Columns widget holding the version and a
+ * dropdown as a blank row on the dev add-on (CYB4-2596).
+ * Without a rendered image it falls back to a DecoratedText: version text +
+ * an outlined language button. Last card section, since a fixed footer can
  * only hold buttons (it sits right after the buttons, not pinned).
  */
 function homeFooterSection(ctx) {
   var canPick = buildLanguageSelector(ctx) !== null;
-  var languageButton = CardService.newTextButton()
-    .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
-    .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-    .setDisabled(!canPick)
-    .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "openLanguagePicker" : "noopAction"));
+  var section = CardService.newCardSection();
+  var pick = CardService.newAction().setFunctionName("openLanguagePicker");
+  var label = localeOptionLabel(ctx.locale);
 
-  return CardService.newCardSection().addWidget(
+  var rendered = homeImageUrl(canPick ? "footer" : "footer-single", ctx.locale);
+  if (rendered) {
+    var row = CardService.newImage().setImageUrl(rendered)
+      .setAltText(version + ". " + label + (canPick ? ". " + t("common.languageSelectLabel") : ""));
+    if (canPick) row.setOnClickAction(pick);
+    return section.addWidget(row);
+  }
+
+  return section.addWidget(
     CardService.newDecoratedText()
       .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>")
-      .setButton(languageButton)
+      .setButton(
+        CardService.newTextButton()
+          .setText(label + (canPick ? "  ⌄" : ""))
+          .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+          .setDisabled(!canPick)
+          .setOnClickAction(canPick ? pick : CardService.newAction().setFunctionName("noopAction"))
+      )
   );
 }
 
