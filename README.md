@@ -114,13 +114,35 @@ The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
 Panel" mock attached to CYB4-2596, top to bottom:
 
 1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
-   (`home.*` keys in `i18n.gs`).
-2. "See an overview of CyberNut": a video thumbnail, or a "Watch the overview
-   video" button when there is no thumbnail.
+   (`home.*` keys in `i18n.gs`), in the mock's text colour.
+2. "See an overview of CyberNut": a thumbnail with a play button. Clicking it
+   plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Fixed footer: version on the left, current language (e.g. `【EN】 English ▾`)
-   on the right.
+4. Bottom row: version on the left, the language dropdown on the right.
+   Choosing a language saves it, as before, and redraws the card in that
+   language. With one language offered, the language shows as text.
+
+Items 1-3 are one card section, so Gmail draws no dividers between them, as
+in the mock. The bottom row is a second section; its divider is the mock's
+footer border.
+
+**Rendered images (exact mock look).** CardService can't do font sizes,
+background fills, full-width buttons or border colours, so the Chip block and
+the two buttons are PNGs rendered from the mock's styles and the `home.*`
+text, one set per language (`assets/home/<name>-<lang>.png`):
+
+- The Chip block has the full text as alt text, for screen readers.
+- The button images are clickable and run the same actions (`handleStep1`,
+  `openLearnAddonLink`).
+- **After changing any `home.*` text, or adding a language:** add the
+  language to `HOME_IMAGE_LANGUAGES` in `env.gs`, run `npm run render:home`
+  (needs Google Chrome; `CHROME=/path` overrides), check the PNGs, and commit
+  them. `npm test` fails if a listed language is missing an image.
+- A language not in `HOME_IMAGE_LANGUAGES`, or an empty
+  `HOME_IMAGES_BASE_URL`, falls back to plain text and Gmail buttons.
+- The images load from `HOME_IMAGES_BASE_URL` (the `dev` branch of this
+  public repo for now). Move them to CyberNut's own storage before prod.
 
 **Assets** live in `env.gs` as top-level constants, the same in prod and dev.
 Each one is `""` until it is set, and `npm test` rejects anything that is not https:
@@ -154,12 +176,14 @@ cannot be built:
   screen recording came to ~470 KB), the same shape as the thumbnail, and on
   a public https URL (Apps Script only receives the `.gs` files). With ffmpeg:
   `ffmpeg -i video.mp4 -t 30 -vf "fps=8,scale=360:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 overview-preview.gif`
-- **Language selector:** a fixed footer can only hold buttons. The language
-  button opens a picker card. Choosing a language saves it, as before, and
-  returns to the home card in that language. With one language offered, the
-  button is disabled.
-- **Styling:** font sizes, background fills, the dashed video border and
-  full-width buttons are not available.
+- **Language selector:** a fixed footer (pinned to the bottom of the panel)
+  can only hold buttons, not a dropdown. The mock's dropdown matters more, so
+  the version + language row is the card's last section instead: it sits right
+  after the buttons rather than pinned to the bottom.
+- **Styling:** font sizes, background fills, button width and border colours
+  are not available in CardService, hence the rendered images above. Still not
+  matched: the blue header bar title (Gmail shows the add-on name there) and
+  the dropdown's look (it must stay Gmail's own dropdown to open a list).
 
 ## Report flow: account settings (step 2)
 

@@ -446,14 +446,46 @@ function hasUrl(value) {
 }
 
 /**
- * "Hi, I'm Chip." block from the CYB4-2596 mock. CardService has no font
- * sizes or background fills, so headings are bold text at the standard size.
- * The squirrel sits in a narrow column beside the greeting; without
- * CHIP_IMAGE_URL the greeting renders alone.
+ * Home card layout from the CYB4-2596 mock ("Chip Reporting Panel"). Gmail
+ * draws a divider between card sections, and the mock has none in its body,
+ * so the whole body is ONE section; the version + language row is a second
+ * section, whose divider stands in for the mock's footer border.
+ * CardService has no font sizes, background fills or full-width buttons, so
+ * those parts of the mock can't be matched (see README "Home panel").
  */
-function chipIntroSection() {
-  var greeting = CardService.newTextParagraph().setText("<b>" + t("home.chipGreeting") + "</b>");
-  var section = CardService.newCardSection();
+var HOME_TEXT_COLOR = "#1B1F3B";   // mock body text
+var HOME_MUTED_COLOR = "#4A4F66";  // mock footer text
+
+/** URL of a rendered home image (env.gs HOME_IMAGES_*), or null to fall back to text. */
+function homeImageUrl(name, locale) {
+  if (!hasUrl(HOME_IMAGES_BASE_URL)) return null;
+  var lang = baseLanguage(locale || "en");
+  if (HOME_IMAGE_LANGUAGES.indexOf(lang) === -1) return null;
+  return HOME_IMAGES_BASE_URL.trim() + name + "-" + lang + ".png";
+}
+
+function homeText(html) {
+  return CardService.newTextParagraph()
+    .setText('<font color="' + HOME_TEXT_COLOR + '">' + html + "</font>");
+}
+
+/**
+ * "Hi, I'm Chip." block. Where a rendered image exists for the language it
+ * is shown as one image (exactly the mock), with the full text as alt text
+ * for screen readers. Otherwise it falls back to text: the squirrel in a
+ * narrow column beside the greeting (or the greeting alone without
+ * CHIP_IMAGE_URL).
+ */
+function addChipIntro(section, locale) {
+  var rendered = homeImageUrl("chip-intro", locale);
+  if (rendered) {
+    section.addWidget(CardService.newImage().setImageUrl(rendered).setAltText([
+      t("home.chipGreeting"), t("home.chipIntro"), t("home.keyPartHeading"),
+      t("home.keyPartBody"), t("home.spotOne"),
+    ].join(" ")));
+    return;
+  }
+  var greeting = homeText("<b>" + t("home.chipGreeting") + "</b>");
 
   if (hasUrl(CHIP_IMAGE_URL)) {
     section.addWidget(
@@ -463,7 +495,7 @@ function chipIntroSection() {
           CardService.newColumn()
             .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_MINIMUM_SPACE)
             .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
-            .addWidget(CardService.newImage().setImageUrl(CHIP_IMAGE_URL).setAltText(t("home.chipAlt")))
+            .addWidget(CardService.newImage().setImageUrl(CHIP_IMAGE_URL.trim()).setAltText(t("home.chipAlt")))
         )
         .addColumn(
           CardService.newColumn()
@@ -476,37 +508,33 @@ function chipIntroSection() {
     section.addWidget(greeting);
   }
 
-  return section
-    .addWidget(CardService.newTextParagraph().setText(t("home.chipIntro")))
-    .addWidget(CardService.newTextParagraph().setText(
-      "<b>" + t("home.keyPartHeading") + "</b><br>" + t("home.keyPartBody")
-    ))
-    .addWidget(CardService.newTextParagraph().setText(t("home.spotOne")));
+  section
+    .addWidget(homeText(t("home.chipIntro")))
+    .addWidget(homeText("<b>" + t("home.keyPartHeading") + "</b><br>" + t("home.keyPartBody")))
+    .addWidget(homeText(t("home.spotOne")));
 }
 
 /**
- * "See an overview of CyberNut". Gmail add-ons cannot play video: cards have
- * no video widget, and Gmail opens links in a new tab even when asked for
- * OVERLAY. So the video plays as a silent looping GIF inside the panel:
+ * "See an overview of CyberNut". Gmail add-ons cannot play video (no video
+ * widget; Gmail opens links in a new tab even when asked for OVERLAY), so
+ * the video plays as a silent looping GIF inside the panel:
  *   - at rest: OVERVIEW_VIDEO_THUMBNAIL_URL (a still with a play button);
  *     clicking it calls playOverviewPreview(), which redraws the card with
  *     OVERVIEW_VIDEO_GIF_URL in its place;
- *   - playing: the GIF; clicking it opens the full video.
- * "Watch the full video" always opens OVERVIEW_VIDEO_URL in a new tab, with
- * sound. Without a GIF the thumbnail opens the video directly; without a
- * thumbnail the GIF shows straight away. Null (section hidden) until
- * OVERVIEW_VIDEO_URL is set.
+ *   - playing: the GIF; clicking it opens OVERVIEW_VIDEO_URL in a new tab.
+ * Without a thumbnail the GIF shows straight away; without a GIF the
+ * thumbnail opens the video. Only with neither image is there a "Watch"
+ * button. Nothing is added until OVERVIEW_VIDEO_URL is set.
  */
-function overviewVideoSection(playing) {
-  if (!hasUrl(OVERVIEW_VIDEO_URL)) return null;
+function addOverviewVideo(section, playing) {
+  if (!hasUrl(OVERVIEW_VIDEO_URL)) return;
   var openVideo = CardService.newOpenLink()
     .setUrl(OVERVIEW_VIDEO_URL.trim())
     .setOpenAs(CardService.OpenAs.FULL_SIZE);
   var hasGif = hasUrl(OVERVIEW_VIDEO_GIF_URL);
   var hasThumb = hasUrl(OVERVIEW_VIDEO_THUMBNAIL_URL);
 
-  var section = CardService.newCardSection()
-    .setHeader("<b>" + t("home.overviewTitle") + "</b>");
+  section.addWidget(homeText("<b>" + t("home.overviewTitle") + "</b>"));
 
   if (hasGif && (playing || !hasThumb)) {
     section.addWidget(
@@ -525,14 +553,14 @@ function overviewVideoSection(playing) {
       thumb.setOpenLink(openVideo);
     }
     section.addWidget(thumb);
+  } else {
+    section.addWidget(
+      CardService.newTextButton()
+        .setText("▶ " + t("home.overviewWatch"))
+        .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
+        .setOpenLink(openVideo)
+    );
   }
-
-  return section.addWidget(
-    CardService.newTextButton()
-      .setText("▶ " + t("home.overviewWatch"))
-      .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-      .setOpenLink(openVideo)
-  );
 }
 
 /** Thumbnail click: redraw the home card with the GIF playing in its place. */
@@ -551,94 +579,76 @@ async function playOverviewPreview(e) {
 }
 
 /**
- * Home footer from the mock: version on the left, current language on the
- * right. A fixed footer holds only buttons, so the language button opens a
- * picker card with the dropdown; when the account offers one language there
- * is nothing to pick and the button is disabled.
+ * One of the two home buttons. CardService buttons can't be full width or
+ * take a border colour, so where a rendered image exists it is a clickable
+ * image of the mock's button (same action); otherwise a normal button.
  */
-function homeFooter(ctx) {
-  var canPick = buildLanguageSelector(ctx) !== null;
-  var languageButton = CardService.newTextButton()
-    .setText(localeOptionLabel(ctx.locale) + (canPick ? " ▾" : ""))
-    .setDisabled(!canPick)
-    .setOnClickAction(
-      CardService.newAction().setFunctionName(canPick ? "openLanguagePicker" : "noopAction")
-    );
-
-  return CardService.newFixedFooter()
-    .setPrimaryButton(languageButton)
-    .setSecondaryButton(
-      CardService.newTextButton()
-        .setText(version)
-        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
-        .setDisabled(true)
-        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
-    );
-}
-
-/** The card the footer language button pushes; onLanguageChange() returns to home. */
-function buildLanguagePickerCard(ctx) {
-  var section = CardService.newCardSection();
-  var selector = buildLanguageSelector(ctx);
-  if (selector) section.addWidget(selector);
-  return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle(t("common.languageSelectLabel")))
-    .addSection(section)
-    .build();
-}
-
-/** Footer language button handler. */
-async function openLanguagePicker(e) {
-  console.log('openLanguagePicker|called!');
-  try {
-    var ctx = await getLanguageContext(e);
-    return CardService.newActionResponseBuilder()
-      .setNavigation(CardService.newNavigation().pushCard(buildLanguagePickerCard(ctx)))
-      .build();
-  } catch (error) {
-    console.log('openLanguagePicker|error|caught!', error.stack);
-    await callErrorReportingApi(error.stack, " ");
-    return buildErrorCard(error.messageCode, error.messageParams);
+function homeButton(imageName, locale, label, functionName, filled) {
+  var action = CardService.newAction().setFunctionName(functionName);
+  var rendered = homeImageUrl(imageName, locale);
+  if (rendered) {
+    return CardService.newImage().setImageUrl(rendered).setAltText(label).setOnClickAction(action);
   }
+  var button = CardService.newTextButton().setText(label).setOnClickAction(action);
+  return filled
+    ? button.setTextButtonStyle(CardService.TextButtonStyle.FILLED).setBackgroundColor("#C9402F")
+    : button.setTextButtonStyle(CardService.TextButtonStyle.OUTLINED);
+}
+
+/**
+ * Bottom row from the mock: version on the left, the language dropdown on
+ * the right, both vertically centred. A fixed footer can only hold buttons,
+ * so this is the card's last section instead: it sits at the end of the
+ * content, not pinned to the bottom of the panel. With one language offered
+ * there is nothing to pick, so the current language shows as text.
+ */
+function homeFooterSection(ctx) {
+  var languageWidget = buildLanguageSelector(ctx, { compact: true }) ||
+    CardService.newTextParagraph()
+      .setText('<font color="' + HOME_MUTED_COLOR + '">' + localeOptionLabel(ctx.locale) + "</font>");
+
+  return CardService.newCardSection().addWidget(
+    CardService.newColumns()
+      .setWrapStyle(CardService.WrapStyle.NOWRAP)
+      .addColumn(
+        CardService.newColumn()
+          .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_MINIMUM_SPACE)
+          .setHorizontalAlignment(CardService.HorizontalAlignment.START)
+          .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
+          .addWidget(CardService.newTextParagraph()
+            .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"))
+      )
+      .addColumn(
+        CardService.newColumn()
+          .setHorizontalSizeStyle(CardService.HorizontalSizeStyle.FILL_AVAILABLE_SPACE)
+          .setHorizontalAlignment(CardService.HorizontalAlignment.END)
+          .setVerticalAlignment(CardService.VerticalAlignment.CENTER)
+          .addWidget(languageWidget)
+      )
+  );
 }
 
 /**
  * The home card itself, with no telemetry side effects: HomePage() wraps it
  * for the trigger, onLanguageChange() redraws it after a switch, and
  * playOverviewPreview() redraws it with the video GIF playing
- * (options.videoPlaying).
- * Layout follows the CYB4-2596 mock (see README "Home panel").
+ * (options.videoPlaying). Layout follows the CYB4-2596 mock (see README
+ * "Home panel").
  */
 async function buildHomeCard(e, options) {
   const ctx = await getLanguageContext(e);
 
-  // No card header: the panel opens straight on the Chip block.
-  var builder = CardService.newCardBuilder()
-    .addSection(chipIntroSection());
+  var body = CardService.newCardSection();
+  addChipIntro(body, ctx.locale);
+  addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
-  var videoSection = overviewVideoSection(Boolean(options && options.videoPlaying));
-  if (videoSection) builder.addSection(videoSection);
+  if (e) body.addWidget(homeButton("btn-report", ctx.locale, t("home.reportButton"), "handleStep1", true));
+  body.addWidget(homeButton("btn-how", ctx.locale, t("home.howReportingWorks"), "openLearnAddonLink", false));
 
-  var actions = CardService.newCardSection();
-  if (e) {
-    actions.addWidget(
-      CardService.newTextButton()
-        .setText(t("home.reportButton"))
-        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-        .setBackgroundColor("#C9402F")
-        .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"))
-    );
-  }
-  actions.addWidget(
-    CardService.newTextButton()
-      .setText(t("home.howReportingWorks"))
-      .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-      .setOnClickAction(CardService.newAction().setFunctionName("openLearnAddonLink"))
-  );
-  builder.addSection(actions);
-
-  builder.setFixedFooter(homeFooter(ctx));
-  return builder.build();
+  return CardService.newCardBuilder()
+    .addSection(body)
+    .addSection(homeFooterSection(ctx))
+    .build();
 }
 
 /**
