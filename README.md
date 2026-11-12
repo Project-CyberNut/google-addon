@@ -136,11 +136,16 @@ To switch the video on: set `OVERVIEW_VIDEO_URL` (and the thumbnail), run
 
 **Gmail limits.** Add-ons only render Google's card widgets, so some of the mock
 cannot be built:
-- **Video:** it cannot play inside the panel. Clicking it opens a popup over Gmail
-  (`OpenAs.OVERLAY` + `OnClose.RELOAD`; with `OVERLAY` alone Gmail opened a
-  normal tab). Closing the popup reloads the home card. Set `OVERVIEW_VIDEO_URL`
-  to the player-only link, e.g. `https://www.youtube.com/embed/<id>?autoplay=1`,
-  not the `/watch` page.
+- **Video:** it cannot play inside Gmail. Cards have no video widget or
+  iframe, and Gmail opened links in a new tab even with `OpenAs.OVERLAY` (and
+  with `OnClose.RELOAD`, tried in #47). So the panel shows a short silent
+  looping GIF (`OVERVIEW_VIDEO_THUMBNAIL_URL`), and the image and the
+  "Watch the overview video" button open the full video in a new tab.
+  A video of 30 s or less can be shown whole this way (no sound, no pause).
+  To make the GIF: up to 30 s, about 360 px wide, 8 fps, under ~1 MB (30 s of
+  screen recording came to ~470 KB), hosted on a public https URL (Apps Script
+  only receives the `.gs` files). With ffmpeg:
+  `ffmpeg -i video.mp4 -t 30 -vf "fps=8,scale=360:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 overview-preview.gif`
 - **Language selector:** a fixed footer can only hold buttons. The language
   button opens a picker card. Choosing a language saves it, as before, and
   returns to the home card in that language. With one language offered, the
