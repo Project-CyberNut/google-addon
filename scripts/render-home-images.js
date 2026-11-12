@@ -53,18 +53,21 @@ p, h2, h3 { margin: 0; }
 </style></head><body><div id="root" dir="${RTL.has(lang) ? "rtl" : "ltr"}">${body}</div></body></html>`;
 }
 
+// Compact version of the mock's Chip block (smaller squirrel and heading,
+// tighter spacing) so the whole home card, down to the version + language
+// row, fits a normal Gmail panel without scrolling.
 function chipIntro(m) {
-  return `<div style="box-sizing:border-box;padding:16px;border-radius:10px;background:#F1F3FF;display:flex;flex-direction:column;gap:12px">
-  <div style="display:flex;align-items:center;gap:16px">
-    <img src="${CHIP}" alt="" style="width:76px;height:80px;flex:none;object-fit:contain">
-    <h2 style="font-size:26px;line-height:32px;font-weight:700">${esc(m.chipGreeting)}</h2>
+  return `<div style="box-sizing:border-box;padding:12px 14px;border-radius:10px;background:#F1F3FF;display:flex;flex-direction:column;gap:8px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <img src="${CHIP}" alt="" style="width:46px;height:49px;flex:none;object-fit:contain">
+    <h2 style="font-size:22px;line-height:28px;font-weight:700">${esc(m.chipGreeting)}</h2>
   </div>
-  <p style="font-size:16px;line-height:24px">${esc(m.chipIntro)}</p>
-  <div style="display:flex;flex-direction:column;gap:4px">
-    <h3 style="font-size:16px;line-height:22px;font-weight:700">${esc(m.keyPartHeading)}</h3>
-    <p style="font-size:15px;line-height:22px">${esc(m.keyPartBody)}</p>
+  <p style="font-size:14px;line-height:20px">${esc(m.chipIntro)}</p>
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <h3 style="font-size:14px;line-height:20px;font-weight:700">${esc(m.keyPartHeading)}</h3>
+    <p style="font-size:14px;line-height:20px">${esc(m.keyPartBody)}</p>
   </div>
-  <p style="font-size:15px;line-height:22px">${esc(m.spotOne)}</p>
+  <p style="font-size:14px;line-height:20px">${esc(m.spotOne)}</p>
 </div>`;
 }
 
