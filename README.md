@@ -113,14 +113,13 @@ every URL it will fetch.
 The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
 Panel" mock attached to CYB4-2596, top to bottom:
 
-1. Header: "Suspicious Email Reporting Tool".
-2. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
+1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
    (`home.*` keys in `i18n.gs`).
-3. "See an overview of CyberNut": a video thumbnail, or a "Watch the overview
+2. "See an overview of CyberNut": a video thumbnail, or a "Watch the overview
    video" button when there is no thumbnail.
-4. **Report Email** (only when an email is open) and **How reporting works**
+3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-5. Fixed footer: version on the left, current language (e.g. `【EN】 English ▾`)
+4. Fixed footer: version on the left, current language (e.g. `【EN】 English ▾`)
    on the right.
 
 **Assets** live in `env.gs` as top-level constants, the same in prod and dev.

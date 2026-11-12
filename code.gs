@@ -573,8 +573,8 @@ async function openLanguagePicker(e) {
 async function buildHomeCard(e) {
   const ctx = await getLanguageContext(e);
 
+  // No card header: the panel opens straight on the Chip block.
   var builder = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle(t("home.headerTitle")))
     .addSection(chipIntroSection());
 
   var videoSection = overviewVideoSection();
