@@ -90,7 +90,9 @@ var DEFAULT_ENV = "prod";
 var OVERVIEW_VIDEO_URL = "https://www.youtube.com/watch?v=dHMQR2qz5Ow";
 var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-thumbnail.jpg";
 var OVERVIEW_VIDEO_GIF_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-preview.gif";
-var CHIP_IMAGE_URL = "";
+// Chip from the CYB4-2596 mock (160x170 PNG in assets/). Move to CyberNut's
+// own storage with the video images before prod.
+var CHIP_IMAGE_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/chip.png";
 
 /** Memoised per execution. */
 var currentEnvMemo = null;
