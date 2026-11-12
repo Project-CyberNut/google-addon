@@ -114,7 +114,10 @@ The home card (`buildHomeCard()` in `code.gs`) follows the "Chip Reporting
 Panel" mock attached to CYB4-2596, top to bottom:
 
 1. Chip block: squirrel image + "Hi, I'm Chip.", then the program copy
-   (`home.*` keys in `i18n.gs`), in the mock's text colour.
+   (`home.*` keys in `i18n.gs`). Rendered as a compact version of the mock's
+   block (smaller squirrel and heading, tighter spacing) so the whole card,
+   down to the version + language row, fits a normal Gmail panel without
+   scrolling.
 2. "See an overview of CyberNut": a thumbnail with a play button. Clicking it
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
