@@ -122,23 +122,18 @@ Panel" mock attached to CYB4-2596, top to bottom:
    plays the video as a GIF in the panel (see **Video** below).
 3. **Report Email** (only when an email is open) and **How reporting works**
    (opens the training onboarding page, as "Onboarding Tutorial" did).
-4. Pinned footer, always at the bottom of the panel: the version and the
-   language ("【EN】 English ⌄"). A fixed footer only takes two Gmail buttons
-   (no image, text or dropdown), so it is Gmail's button style, not the mock's
-   square box: the version is a disabled borderless button, the language an
-   outlined button that opens a small picker card with the real dropdown.
-   Choosing a language saves it, as before, and returns to the home card in
-   that language. With one language offered, the button is disabled.
-   **No `Columns`:** on the dev add-on Gmail drew a `Columns` widget holding
-   the version and a dropdown as a blank row, so the add-on doesn't use
-   `Columns` anywhere.
+4. Language dropdown at the bottom of the card, with the version in small
+   grey text under it. The dropdown opens in place; choosing a language saves
+   it, as before, and redraws the card in that language. With one language
+   offered, the language shows as text.
+   Not the mock's exact row, because of Gmail: a fixed (pinned) footer only
+   takes buttons, not a dropdown, and `Columns` (needed to put the version
+   beside the dropdown) drew as a blank row on the dev add-on, so the add-on
+   doesn't use `Columns` anywhere.
 
 **Spam.** For a message in Spam the home card has no video and no Report
-Email (Gmail blocks reporting there), and the footer is the mock-style row
-image (`footer-<lang>.png`) inside the card, not pinned: in Spam, Gmail leaves
-an invisible layer over the bottom of the panel that swallows clicks on a
-fixed footer (#40). `buildHomeCard()` detects Spam itself, so a language
-change in Spam keeps this layout.
+Email (Gmail blocks reporting there). `buildHomeCard()` detects Spam itself,
+so a language change in Spam keeps this layout.
 
 Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock. The bottom row is a second section; its divider is the mock's
@@ -152,10 +147,6 @@ text, one set per language (`assets/home/<name>-<lang>.png`):
 - The Chip block has the full text as alt text, for screen readers.
 - The button images are clickable and run the same actions (`handleStep1`,
   `openLearnAddonLink`).
-- **The footer images show the version.** After every version bump in
-  `package.json`, run `npm run render:home` and commit the PNGs:
-  `npm test` fails until `assets/home/footer.json` matches. Image URLs carry
-  `?v=<version>` so Gmail doesn't show a cached old footer.
 - **After changing any `home.*` text, or adding a language:** add the
   language to `HOME_IMAGE_LANGUAGES` in `env.gs`, run `npm run render:home`
   (needs Google Chrome; `CHROME=/path` overrides), check the PNGs, and commit
