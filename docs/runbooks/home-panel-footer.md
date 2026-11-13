@@ -1,8 +1,8 @@
 # Gmail add-on: home panel footer (version and language button)
 
 Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`):
-the add-on version on the left and the language button ("【EN】 English ⌄")
-on the right. Clicking the language button opens the language page
+the add-on version on the left and the language button ("English ⌄", the
+language name only) on the right. Clicking the language button opens the language page
 (`showLanguagePicker()`), a pushed card with the language dropdown. Picking a
 language runs `onLanguageChange()`, which saves it and returns to the home
 card in that language.
@@ -22,9 +22,11 @@ The same trick is used on the report cards' footer (`VERSION_FOOTER_PADDING`).
 ## Symptoms and fixes
 
 ### Version sits in the middle of the footer, not at the left
-- **Root cause:** too little padding for that language. The first values
-  (v 2.5.8) were label widths measured in Chrome, which left the version
-  ~74px from the left on the dev add-on.
+- **Root cause:** too little padding for that language, or a language label
+  too wide to leave room for it. The label plus the padding must stay under
+  ~140px or the footer wraps (next section). In v 2.5.8 the label was
+  "【EN】 English ⌄" (~114px), which left only ~25px of padding, so the
+  version stayed ~74px from the left; v 2.5.10 shows the name only.
 - **Fix:** add one no-break space (`nbsp`) to that language's entry in
   `HOME_FOOTER_PADDING` per ~4px it should move left. Use `thin` for the last
   couple of px.
@@ -33,8 +35,9 @@ The same trick is used on the report cards' footer (`VERSION_FOOTER_PADDING`).
   edge (where the report cards' footer puts it).
 
 ### Version wraps onto its own line, or the footer is two rows
-- **Root cause:** too much padding: the version button plus the language
-  button no longer fit in one row.
+- **Root cause:** too much padding: the language label plus the padding is
+  over ~140px, so Gmail puts the two footer buttons on separate rows. v 2.5.9
+  did this ("【EN】 English ⌄" plus 15 + 1 thin).
 - **Fix:** take one `nbsp` off that language's entry until it fits on one line.
 - **Verify:** as above, one row with the version at the left.
 

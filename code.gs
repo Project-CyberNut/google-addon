@@ -564,14 +564,17 @@ function homeButton(label, functionName, filled) {
 }
 
 /**
- * The language button ("【EN】 English  ⌄"). Clicking it runs
- * showLanguagePicker(), which opens the language page with the real
- * dropdown. Disabled, without the arrow, when only one language is offered.
+ * The language button ("English  ⌄"): the language name only, without the
+ * "【EN】" tag the dropdown uses, so it stays narrow enough for the version
+ * to sit at the left of the same footer row (see HOME_FOOTER_PADDING).
+ * Clicking it runs showLanguagePicker(), which opens the language page with
+ * the real dropdown. Disabled, without the arrow, when only one language is
+ * offered.
  */
 function homeLanguageButton(ctx) {
   var canPick = buildLanguageSelector(ctx) !== null;
   return CardService.newTextButton()
-    .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
+    .setText(localeLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
     .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
     .setDisabled(!canPick)
     .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "showLanguagePicker" : "noopAction"));
@@ -581,28 +584,34 @@ function homeLanguageButton(ctx) {
  * Invisible padding after the version in the home card's pinned footer, per
  * language, so the version sits at the left like the mock. Same trick as
  * VERSION_FOOTER_PADDING (report cards): Gmail keeps both footer buttons
- * together on the right, so the padding widens the version button leftwards;
- * one step too many wraps the version onto its own line.
- * No-break space ~3.9px, thin space ~2.8px. Calibrated on the Cybernut Dev
- * add-on (v 2.5.9, es): 5 + 1 thin left "v 2.5.9" ~74px from the card's left
- * edge, so es gets ~37px more to put it at ~39px, like the report cards'
- * footer (VERSION_FOOTER_PADDING). en and ar keep their Chrome-measured
- * width difference from es (en label 4px narrower, ar 20px narrower):
- *   es  "【ES】 Español  ⌄"  14 + 1 thin  (~57px)
- *   en  "【EN】 English  ⌄"  15 + 1 thin  (~61px)
- *   ar  "【AR】 العربية  ⌄"   19 + 1 thin  (~77px)
+ * together on the right, so the padding widens the version button leftwards.
+ * No-break space ~3.9px, thin space ~2.8px.
+ *
+ * Limit: the language label plus this padding must stay under ~140px, or
+ * Gmail wraps the footer onto two rows (version above the button). v 2.5.9
+ * broke it: "【EN】 English  ⌄" (~114px) plus 15 + 1 thin (~61px) wrapped on
+ * the dev add-on. With the 【XX】 tag the label left only ~25px of padding,
+ * so the version could not get past the middle; the button now shows the
+ * language name only (~51px narrower). Widths at 14px Arial in Chrome,
+ * aiming for ~136px so there is a little slack:
+ *   en  "English  ⌄"  ~63px -> 18 + 1 thin (~73px)
+ *   es  "Español  ⌄"  ~67px -> 17 + 1 thin (~69px)
+ *   ar  "العربية  ⌄"   ~47px -> 22 + 1 thin (~89px)
+ * A disabled button has no "  ⌄" (~16px narrower): DISABLED_EXTRA_NBSP more.
  * If a language wraps, take one nbsp off; if its version isn't at the left,
- * add one. Check on the dev add-on after changing a language label.
+ * add one (docs/runbooks/home-panel-footer.md).
  */
 var HOME_FOOTER_PADDING = {
-  en: { nbsp: 15, thin: 1 },
-  es: { nbsp: 14, thin: 1 },
-  ar: { nbsp: 19, thin: 1 },
+  en: { nbsp: 18, thin: 1 },
+  es: { nbsp: 17, thin: 1 },
+  ar: { nbsp: 22, thin: 1 },
 };
+var DISABLED_EXTRA_NBSP = 4;
 
-function homeFooterPadding(locale) {
+function homeFooterPadding(locale, canPick) {
   var pad = HOME_FOOTER_PADDING[baseLanguage(locale || "en")] || { nbsp: 0, thin: 0 };
-  return "\u00a0".repeat(pad.nbsp) + "\u2009".repeat(pad.thin);
+  var nbsp = pad.nbsp + (canPick ? 0 : DISABLED_EXTRA_NBSP);
+  return "\u00a0".repeat(nbsp) + "\u2009".repeat(pad.thin);
 }
 
 /**
@@ -617,7 +626,7 @@ function homeFixedFooter(ctx) {
     .setPrimaryButton(homeLanguageButton(ctx))
     .setSecondaryButton(
       CardService.newTextButton()
-        .setText(version + homeFooterPadding(ctx.locale) + "\u2060")
+        .setText(version + homeFooterPadding(ctx.locale, buildLanguageSelector(ctx) !== null) + "\u2060")
         .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
         .setDisabled(true)
         .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
