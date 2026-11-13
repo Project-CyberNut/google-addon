@@ -1,60 +1,60 @@
-# Gmail add-on: home panel footer (version and language button)
+# Gmail add-on: home panel footer (language button)
 
-Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`):
-the add-on version on the left and the language button ("English ⌄", the
-language name only) on the right. Clicking the language button opens the language page
+Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`).
+It holds one button, the language button ("【EN】 English ⌄"), pinned to the
+bottom of the panel (Spam included). Clicking it opens the language page
 (`showLanguagePicker()`), a pushed card with the language dropdown. Picking a
 language runs `onLanguageChange()`, which saves it and returns to the home
 card in that language.
 
-## How it works
+The add-on version is not in the footer. It's a small grey line at the end of
+the card (`buildHomeCard()`).
 
-A Gmail fixed footer only takes two buttons and always puts them together on
-the right; CardService has no alignment setting. So the version is a
-disabled borderless button, and invisible padding after its text
-(`HOME_FOOTER_PADDING`, no-break spaces ~3.9px and thin spaces ~2.8px)
-widens it leftwards until the text sits at the left edge. The padding is per
-language because the language button's label width differs per language.
-`npm test` fails if a message catalogue has no `HOME_FOOTER_PADDING` entry.
+## Why the version left the footer
 
-The same trick is used on the report cards' footer (`VERSION_FOOTER_PADDING`).
+A Gmail fixed footer only takes buttons. The version used to be a second,
+disabled button (Gmail greys disabled buttons), pushed left with invisible
+padding. Gmail wrapped the footer onto two rows whenever that padding got
+too wide, and the wrap point can only be found by trial in Gmail: v 2.5.9,
+v 2.5.10 and v 2.5.11 all changed the padding, and #57 reverted #56. In
+v 2.5.12 the footer holds only the language button, so there's nothing to
+wrap or tune.
+
+The report cards' footer still uses that trick (`VERSION_FOOTER_PADDING`,
+measured in Gmail). Leave it alone unless it wraps.
 
 ## Symptoms and fixes
 
-### Version sits in the middle of the footer, not at the left
-- **Root cause:** too little padding for that language, or a language label
-  too wide to leave room for it. The label plus the padding must stay under
-  ~140px or the footer wraps (next section). In v 2.5.8 the label was
-  "【EN】 English ⌄" (~114px), which left only ~25px of padding, so the
-  version stayed ~74px from the left; v 2.5.10 shows the name only.
-- **Fix:** add one no-break space (`nbsp`) to that language's entry in
-  `HOME_FOOTER_PADDING` per ~4px it should move left. Use `thin` for the last
-  couple of px.
-- **Verify:** push to the Cybernut Dev add-on, open the home card in that
-  language, and check the version starts about 39px from the card's left
-  edge (where the report cards' footer puts it).
-
-### Version wraps onto its own line, or the footer is two rows
-- **Root cause:** too much padding: the language label plus the padding is
-  over ~140px, so Gmail puts the two footer buttons on separate rows. v 2.5.9
-  did this ("【EN】 English ⌄" plus 15 + 1 thin).
-- **Fix:** take one `nbsp` off that language's entry until it fits on one line.
-- **Verify:** as above, one row with the version at the left.
-
-### New language, or a language label changed
-- **Root cause:** the padding is tuned to each language's button label width.
-- **Fix:** add or adjust the language's entry in `HOME_FOOTER_PADDING`
-  (start from the closest language with a similar label width), run
-  `npm test`, then tune on the dev add-on as above.
+### Language button is greyed out (no ⌄) and does nothing
+- **Root cause:** the add-on offers only one language for this user, so
+  there's nothing to pick. `getLanguageContext()` gives one option when it
+  can't read the user's email/domain, when the language preference call
+  fails or returns nothing, or when the account supports one language.
+- **Fix:** open the Apps Script project's **Executions** page, find the
+  latest `HomePage` run and read the `getLanguageContext|resolved|` line:
+  `supported` is what the account's language API returned ("unreadable"
+  means the call failed), `offered` is what the button can switch to. Fix
+  the account's supported languages, or the API call, accordingly.
+- **Verify:** reopen the add-on; the button shows ⌄ and opens the language
+  page.
 
 ### Language button does nothing on a message in Spam
 - **Root cause:** in Spam, Gmail has left an invisible layer over the bottom
   of the panel that swallows clicks on the fixed footer (#40). The footer is
   pinned in Spam since CYB4-2596 (v 2.5.9).
-- **Fix:** for Spam only, put the version and language button inside the card
-  instead of the fixed footer: in `buildHomeCard()`, when `isSpamContext(e)`
-  is true, add a last section with a `DecoratedText` (version text) whose end
-  button is `homeLanguageButton(ctx)`, and skip `setFixedFooter`.
+- **Fix:** for Spam only, put the language button inside the card instead of
+  the fixed footer: in `buildHomeCard()`, when `isSpamContext(e)` is true,
+  add a last section with a `DecoratedText` whose end button is
+  `homeLanguageButton(ctx)`, and skip `setFixedFooter`.
 - **Verify:** open a message in Spam, click the language button, and check the
   language page opens; pick a language and check the home card comes back in
   it.
+
+### Picking a language doesn't change the card
+- **Root cause:** `onLanguageChange()` only accepts a code from the account's
+  supported list; anything else shows "language.invalid". If the save to the
+  account fails, it still switches locally and shows "savedLocallyOnly".
+- **Fix:** check the toast text and the `onLanguageChange|` log line (`raw`,
+  `chosen`, `offered`) in **Executions**.
+- **Verify:** pick a language; the home card redraws in it with
+  "Language updated.".

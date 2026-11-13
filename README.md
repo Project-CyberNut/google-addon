@@ -122,18 +122,15 @@ widgets (no rendered images), top to bottom:
 3. **Report Email** (only when an email is open; filled, the mock's red
    `#C9402F`) and **How reporting works** (outlined; opens the training
    onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
-4. Pinned footer, always at the bottom of the panel: the version on the left
-   and the language button ("English ⌄", the name only, so it leaves room for the version) on the right. A fixed footer
-   only takes two Gmail buttons (no dropdown, text or image), so:
-   - the version is a disabled borderless button, pushed to the left with
-     invisible padding measured per language (`HOME_FOOTER_PADDING` in
-     `code.gs`, checked by `npm test`; same trick as the report cards'
-     `VERSION_FOOTER_PADDING`);
-   - clicking the language button (`showLanguagePicker()`) opens the
-     language page: a pushed card with Gmail's back arrow and the real
-     language dropdown. Choosing a language saves it, as before
-     (`onLanguageChange()`), and returns to the home card redrawn in that
-     language.
+4. The version (`v 2.5.12`), small and grey, as the card's last line.
+5. Pinned footer, always at the bottom of the panel: only the language button
+   ("【EN】 English ⌄"). A fixed footer only takes Gmail buttons (no dropdown,
+   text or image), so clicking the button (`showLanguagePicker()`) opens the
+   language page: a pushed card with Gmail's back arrow and the real language
+   dropdown. Choosing a language saves it (`onLanguageChange()`) and returns
+   to the home card redrawn in that language. The version used to be a second
+   (disabled, grey) footer button pushed left with padding; Gmail wrapped the
+   footer onto two rows (v 2.5.9 - v 2.5.11), so it moved into the card.
    With one language offered, the button is disabled. **No `Columns`:** on
    the dev add-on Gmail drew a `Columns` widget as a blank row.
 
@@ -142,10 +139,10 @@ pinned footer. `buildHomeCard()` detects Spam itself, so a language change in
 Spam keeps this layout. Caveat (#40): Gmail has left an invisible layer over
 the bottom of the panel in Spam that swallowed fixed-footer clicks. If the
 language button does nothing on a Spam message, that's the cause; the fix
-is to move the version + language row back into the card for Spam (a
+is to move the language button back into the card for Spam (a
 `DecoratedText` with the language button as its end button).
 
-Items 1-3 are one card section, so Gmail draws no dividers between them, as
+Items 1-4 are one card section, so Gmail draws no dividers between them, as
 in the mock.
 
 **Assets** live in `env.gs` as top-level constants, the same in prod and dev.

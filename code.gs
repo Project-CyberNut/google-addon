@@ -564,73 +564,31 @@ function homeButton(label, functionName, filled) {
 }
 
 /**
- * The language button ("English  ⌄"): the language name only, without the
- * "【EN】" tag the dropdown uses, so it stays narrow enough for the version
- * to sit at the left of the same footer row (see HOME_FOOTER_PADDING).
- * Clicking it runs showLanguagePicker(), which opens the language page with
- * the real dropdown. Disabled, without the arrow, when only one language is
- * offered.
+ * The language button ("【EN】 English  ⌄"). Clicking it runs
+ * showLanguagePicker(), which opens the language page with the real
+ * dropdown. Disabled, without the arrow, when only one language is offered.
  */
 function homeLanguageButton(ctx) {
   var canPick = buildLanguageSelector(ctx) !== null;
   return CardService.newTextButton()
-    .setText(localeLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
+    .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
     .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
     .setDisabled(!canPick)
     .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "showLanguagePicker" : "noopAction"));
 }
 
 /**
- * Invisible padding after the version in the home card's pinned footer, per
- * language, so the version sits at the left like the mock. Same trick as
- * VERSION_FOOTER_PADDING (report cards): Gmail keeps both footer buttons
- * together on the right, so the padding widens the version button leftwards.
- * No-break space ~3.9px, thin space ~2.8px.
- *
- * Limit: the language label plus this padding must stay under ~140px, or
- * Gmail wraps the footer onto two rows (version above the button). v 2.5.9
- * broke it: "【EN】 English  ⌄" (~114px) plus 15 + 1 thin (~61px) wrapped on
- * the dev add-on. With the 【XX】 tag the label left only ~25px of padding,
- * so the version could not get past the middle; the button now shows the
- * language name only (~51px narrower). Widths at 14px Arial in Chrome,
- * aiming for ~136px so there is a little slack:
- *   en  "English  ⌄"  ~63px -> 18 + 1 thin (~73px)
- *   es  "Español  ⌄"  ~67px -> 17 + 1 thin (~69px)
- *   ar  "العربية  ⌄"   ~47px -> 22 + 1 thin (~89px)
- * A disabled button has no "  ⌄" (~16px narrower): DISABLED_EXTRA_NBSP more.
- * If a language wraps, take one nbsp off; if its version isn't at the left,
- * add one (docs/runbooks/home-panel-footer.md).
- */
-var HOME_FOOTER_PADDING = {
-  en: { nbsp: 18, thin: 1 },
-  es: { nbsp: 17, thin: 1 },
-  ar: { nbsp: 22, thin: 1 },
-};
-var DISABLED_EXTRA_NBSP = 4;
-
-function homeFooterPadding(locale, canPick) {
-  var pad = HOME_FOOTER_PADDING[baseLanguage(locale || "en")] || { nbsp: 0, thin: 0 };
-  var nbsp = pad.nbsp + (canPick ? 0 : DISABLED_EXTRA_NBSP);
-  return "\u00a0".repeat(nbsp) + "\u2009".repeat(pad.thin);
-}
-
-/**
- * Pinned footer (always at the bottom of the panel), as in the mock: the
- * version on the left, the language on the right. A fixed footer only takes
- * two Gmail buttons, so the language is an outlined button; clicking it runs
+ * Pinned footer (always at the bottom of the panel, Spam included): only the
+ * language button ("【EN】 English  ⌄"). Clicking it runs
  * showLanguagePicker(), which opens the language page with the real
- * dropdown. With one language offered the button is disabled.
+ * dropdown. With one language offered the button is disabled (greyed, no ⌄).
+ * The version is not in the footer: as a second footer button it had to be
+ * a disabled (grey) button pushed left with invisible padding, and Gmail
+ * wrapped the footer onto two rows (v 2.5.9 - v 2.5.11). It is a small grey
+ * line at the bottom of the card instead (buildHomeCard).
  */
 function homeFixedFooter(ctx) {
-  return CardService.newFixedFooter()
-    .setPrimaryButton(homeLanguageButton(ctx))
-    .setSecondaryButton(
-      CardService.newTextButton()
-        .setText(version + homeFooterPadding(ctx.locale, buildLanguageSelector(ctx) !== null) + "\u2060")
-        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
-        .setDisabled(true)
-        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
-    );
+  return CardService.newFixedFooter().setPrimaryButton(homeLanguageButton(ctx));
 }
 
 /**
@@ -695,6 +653,10 @@ async function buildHomeCard(e, options) {
 
   if (e) body.addWidget(homeButton(t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton(t("home.howReportingWorks"), "openLearnAddonLink", false));
+  // Version for support, small and grey at the end of the card (not in the
+  // footer, see homeFixedFooter).
+  body.addWidget(CardService.newTextParagraph()
+    .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
 
   return CardService.newCardBuilder()
     .addSection(body)

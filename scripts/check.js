@@ -62,10 +62,6 @@ if (loaded) {
     const pad = sandbox.VERSION_FOOTER_PADDING[sandbox.baseLanguage(code)];
     if (!pad || !Number.isInteger(pad.nbsp) || !Number.isInteger(pad.thin)) fail(`MESSAGES.${code}: no VERSION_FOOTER_PADDING entry in code.gs`);
   }
-  for (const code of Object.keys(sandbox.MESSAGES)) {
-    const hp = sandbox.HOME_FOOTER_PADDING && sandbox.HOME_FOOTER_PADDING[sandbox.baseLanguage(code)];
-    if (!hp || !Number.isInteger(hp.nbsp) || !Number.isInteger(hp.thin)) fail(`MESSAGES.${code}: no HOME_FOOTER_PADDING entry in code.gs`);
-  }
   const used = new Set();
   for (const f of sources) for (const m of read(f).matchAll(/\bt\("([^"]+)"/g)) used.add(m[1]);
   for (const k of used) if (!en.has(k)) fail(`t("${k}") used but not in MESSAGES.en`);
