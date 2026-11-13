@@ -578,17 +578,26 @@ function homeLanguageButton(ctx) {
 }
 
 /**
- * Pinned footer (always at the bottom of the panel, Spam included): only the
- * language button ("【EN】 English  ⌄"). Clicking it runs
- * showLanguagePicker(), which opens the language page with the real
- * dropdown. With one language offered the button is disabled (greyed, no ⌄).
- * The version is not in the footer: as a second footer button it had to be
- * a disabled (grey) button pushed left with invisible padding, and Gmail
- * wrapped the footer onto two rows (v 2.5.9 - v 2.5.11). It is a small grey
- * line at the bottom of the card instead (buildHomeCard).
+ * Pinned footer (always at the bottom of the panel, Spam included): the
+ * language button ("【EN】 English  ⌄") with the version beside it. Clicking
+ * the button runs showLanguagePicker(), which opens the language page with
+ * the real dropdown. With one language offered the button is disabled
+ * (greyed, no ⌄).
+ * The version is the secondary button: a fixed footer only takes buttons, so
+ * it is a disabled borderless one. Gmail keeps both footer buttons together
+ * on the right, and that is where it stays - pushing it to the left corner
+ * with invisible padding wrapped the footer onto two rows (v 2.5.9 - 2.5.11).
  */
 function homeFixedFooter(ctx) {
-  return CardService.newFixedFooter().setPrimaryButton(homeLanguageButton(ctx));
+  return CardService.newFixedFooter()
+    .setPrimaryButton(homeLanguageButton(ctx))
+    .setSecondaryButton(
+      CardService.newTextButton()
+        .setText(version)
+        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
+        .setDisabled(true)
+        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
+    );
 }
 
 /**
@@ -653,10 +662,6 @@ async function buildHomeCard(e, options) {
 
   if (e) body.addWidget(homeButton(t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton(t("home.howReportingWorks"), "openLearnAddonLink", false));
-  // Version for support, small and grey at the end of the card (not in the
-  // footer, see homeFixedFooter).
-  body.addWidget(CardService.newTextParagraph()
-    .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
 
   return CardService.newCardBuilder()
     .addSection(body)
