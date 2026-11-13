@@ -1,51 +1,59 @@
 # Gmail add-on: home panel footer (version and language button)
 
 Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`):
-the add-on version on the left and the language button ("English ⌄", the
-language name only) on the right. Clicking the language button opens the language page
-(`showLanguagePicker()`), a pushed card with the language dropdown. Picking a
-language runs `onLanguageChange()`, which saves it and returns to the home
-card in that language.
+the add-on version and the language button ("【EN】 English ⌄") side by side
+on one row, pinned to the bottom of the panel (Spam included). Clicking the
+language button opens the language page (`showLanguagePicker()`), a pushed
+card with the language dropdown. Picking a language runs
+`onLanguageChange()`, which saves it and returns to the home card in that
+language.
 
 ## How it works
 
 A Gmail fixed footer only takes two buttons and always puts them together on
-the right; CardService has no alignment setting. So the version is a
-disabled borderless button, and invisible padding after its text
-(`HOME_FOOTER_PADDING`, no-break spaces ~3.9px and thin spaces ~2.8px)
-widens it leftwards until the text sits at the left edge. The padding is per
-language because the language button's label width differs per language.
-`npm test` fails if a message catalogue has no `HOME_FOOTER_PADDING` entry.
+the right; CardService has no alignment setting. The version is a disabled
+borderless button with a little invisible padding after its text
+(`HOME_FOOTER_PADDING`, no-break spaces ~3.9px and thin spaces ~2.8px), which
+moves it a bit to the left of the language button. `npm test` fails if a
+message catalogue has no `HOME_FOOTER_PADDING` entry.
+
+Known-good values (one row on the dev add-on): en 6 + 1 thin, es 5 + 1 thin,
+ar 10 + 1 thin. The version then sits about 74px from the card's left edge,
+next to the language button. It can't be pushed to the far left: more padding
+wraps the footer (next section).
 
 The same trick is used on the report cards' footer (`VERSION_FOOTER_PADDING`).
 
 ## Symptoms and fixes
 
-### Version sits in the middle of the footer, not at the left
-- **Root cause:** too little padding for that language, or a language label
-  too wide to leave room for it. The label plus the padding must stay under
-  ~140px or the footer wraps (next section). In v 2.5.8 the label was
-  "【EN】 English ⌄" (~114px), which left only ~25px of padding, so the
-  version stayed ~74px from the left; v 2.5.10 shows the name only.
-- **Fix:** add one no-break space (`nbsp`) to that language's entry in
-  `HOME_FOOTER_PADDING` per ~4px it should move left. Use `thin` for the last
-  couple of px.
+### Version sits above the language button (footer is two rows)
+- **Root cause:** too much padding in `HOME_FOOTER_PADDING`. Gmail wraps the
+  two footer buttons onto separate rows when the version button gets too wide.
+  v 2.5.9 (14-15 nbsp) and v 2.5.10 (17-22 nbsp, with a shorter
+  "English ⌄" label) both did this; v 2.5.11 went back to the values above.
+- **Fix:** take `nbsp` off that language's entry until the footer is one row.
+  Don't add padding to push the version further left.
 - **Verify:** push to the Cybernut Dev add-on, open the home card in that
-  language, and check the version starts about 39px from the card's left
-  edge (where the report cards' footer puts it).
+  language, and check the version and the language button are on one row.
 
-### Version wraps onto its own line, or the footer is two rows
-- **Root cause:** too much padding: the language label plus the padding is
-  over ~140px, so Gmail puts the two footer buttons on separate rows. v 2.5.9
-  did this ("【EN】 English ⌄" plus 15 + 1 thin).
-- **Fix:** take one `nbsp` off that language's entry until it fits on one line.
-- **Verify:** as above, one row with the version at the left.
+### Language button is greyed out (no ⌄) and does nothing
+- **Root cause:** the add-on offers only one language for this user, so
+  there's nothing to pick. `getLanguageContext()` gives one option when it
+  can't read the user's email/domain, when the language preference call
+  fails or returns nothing, or when the account supports one language.
+- **Fix:** open the Apps Script project's **Executions** page, find the
+  latest `HomePage` run and read the `getLanguageContext|resolved|` line:
+  `supported` is what the account's language API returned ("unreadable"
+  means the call failed), `offered` is what the button can switch to. Fix
+  the account's supported languages, or the API call, accordingly.
+- **Verify:** reopen the add-on; the button shows ⌄ and opens the language
+  page.
 
 ### New language, or a language label changed
 - **Root cause:** the padding is tuned to each language's button label width.
-- **Fix:** add or adjust the language's entry in `HOME_FOOTER_PADDING`
-  (start from the closest language with a similar label width), run
-  `npm test`, then tune on the dev add-on as above.
+- **Fix:** add the language's entry in `HOME_FOOTER_PADDING`, starting from
+  the closest language with a similar label width (a wider label needs less
+  padding), run `npm test`, then check on the dev add-on for one row.
 
 ### Language button does nothing on a message in Spam
 - **Root cause:** in Spam, Gmail has left an invisible layer over the bottom
