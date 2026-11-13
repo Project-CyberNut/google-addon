@@ -578,88 +578,17 @@ function homeLanguageButton(ctx) {
 }
 
 /**
- * Invisible padding after the version in the home card's pinned footer, per
- * language. Same trick as VERSION_FOOTER_PADDING (report cards): Gmail keeps
- * both footer buttons together on the right, so the padding widens the
- * version button leftwards. No-break space ~3.9px, thin space ~2.8px.
- *
- * Too much and Gmail wraps the footer onto two rows (version above the
- * language button). #53's values (en 6, es 5, ar 10) gave one row with the
- * version ~60-74px in. en 20 put "v 2.5.11" in the left corner in the
- * preview, so en is 20 and es / ar get the same +14:
- *   en  20 + 1 thin   es  19 + 1 thin   ar  24 + 1 thin
- * Not yet confirmed in Gmail: the earlier wraps (v 2.5.9, v 2.5.10) were seen
- * with the language button disabled. Read the real limit with the dev-only
- * footer tester; if a language wraps, take nbsp off
- * (docs/runbooks/home-panel-footer.md).
- */
-var HOME_FOOTER_PADDING = {
-  en: { nbsp: 20, thin: 1 },
-  es: { nbsp: 19, thin: 1 },
-  ar: { nbsp: 24, thin: 1 },
-};
-
-function homeFooterPadding(locale, nbspOverride) {
-  var pad = HOME_FOOTER_PADDING[baseLanguage(locale || "en")] || { nbsp: 0, thin: 0 };
-  var nbsp = typeof nbspOverride === "number" ? nbspOverride : pad.nbsp;
-  return "\u00a0".repeat(nbsp) + "\u2009".repeat(pad.thin);
-}
-
-/**
- * TEMPORARY, dev add-on only (CYB4-2596): a "Footer test" row on the home
- * card with -1 / +1 buttons that redraw the card with that many no-break
- * spaces after the version, so the largest value that keeps the footer on
- * one row can be read off in Gmail for each language and copied into
- * HOME_FOOTER_PADDING. Never shown on prod (currentEnvName() !== "dev").
- * Remove once the values are set.
- */
-function footerTestSection(ctx, nbsp) {
-  var lang = baseLanguage(ctx.locale || "en");
-  var step = function (label, value) {
-    return CardService.newTextButton()
-      .setText(label)
-      .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-      .setDisabled(value < 0)
-      .setOnClickAction(CardService.newAction()
-        .setFunctionName("tuneHomeFooter")
-        .setParameters({ nbsp: String(Math.max(0, value)) }));
-  };
-  return CardService.newCardSection()
-    .addWidget(homeText("<b>Footer test (dev only)</b><br>" + lang + ": " + nbsp +
-      " nbsp + " + ((HOME_FOOTER_PADDING[lang] || { thin: 0 }).thin) + " thin"))
-    .addWidget(CardService.newButtonSet()
-      .addButton(step("−1", nbsp - 1))
-      .addButton(step("+1", nbsp + 1))
-      .addButton(step("+5", nbsp + 5)));
-}
-
-/** Footer test buttons: redraw the home card with the chosen padding. */
-async function tuneHomeFooter(e) {
-  var nbsp = parseInt(e && e.parameters && e.parameters.nbsp, 10);
-  console.log("tuneHomeFooter|", { nbsp: nbsp });
-  var card = await buildHomeCard(e, { footerNbsp: isNaN(nbsp) ? undefined : nbsp });
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(card))
-    .build();
-}
-
-/**
- * Pinned footer (always at the bottom of the panel), as in the mock: the
- * version on the left, the language on the right. A fixed footer only takes
- * two Gmail buttons, so the language is an outlined button; clicking it runs
+ * Pinned footer (always at the bottom of the panel, Spam included): only the
+ * language button ("【EN】 English  ⌄"). Clicking it runs
  * showLanguagePicker(), which opens the language page with the real
- * dropdown. With one language offered the button is disabled.
+ * dropdown. With one language offered the button is disabled (greyed, no ⌄).
+ * The version is not in the footer: as a second footer button it had to be
+ * a disabled (grey) button pushed left with invisible padding, and Gmail
+ * wrapped the footer onto two rows (v 2.5.9 - v 2.5.11). It is a small grey
+ * line at the bottom of the card instead (buildHomeCard).
  */
-function homeFixedFooter(ctx, nbspOverride) {
-  return CardService.newFixedFooter()
-    .setPrimaryButton(homeLanguageButton(ctx))
-    .setSecondaryButton(
-      CardService.newTextButton()
-        .setText(version + homeFooterPadding(ctx.locale, nbspOverride) + "\u2060")
-        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
-        .setDisabled(true)
-        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
-    );
+function homeFixedFooter(ctx) {
+  return CardService.newFixedFooter().setPrimaryButton(homeLanguageButton(ctx));
 }
 
 /**
@@ -724,18 +653,15 @@ async function buildHomeCard(e, options) {
 
   if (e) body.addWidget(homeButton(t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton(t("home.howReportingWorks"), "openLearnAddonLink", false));
+  // Version for support, small and grey at the end of the card (not in the
+  // footer, see homeFixedFooter).
+  body.addWidget(CardService.newTextParagraph()
+    .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
 
-  var builder = CardService.newCardBuilder().addSection(body);
-
-  // TEMPORARY footer tester, dev add-on only (see footerTestSection).
-  var footerNbsp = options && typeof options.footerNbsp === "number" ? options.footerNbsp : undefined;
-  if (currentEnvName() === "dev") {
-    var lang = baseLanguage(ctx.locale || "en");
-    var shown = footerNbsp !== undefined ? footerNbsp : (HOME_FOOTER_PADDING[lang] || { nbsp: 0 }).nbsp;
-    builder.addSection(footerTestSection(ctx, shown));
-  }
-
-  return builder.setFixedFooter(homeFixedFooter(ctx, footerNbsp)).build();
+  return CardService.newCardBuilder()
+    .addSection(body)
+    .setFixedFooter(homeFixedFooter(ctx))
+    .build();
 }
 
 async function HomePage(e) {
