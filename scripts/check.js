@@ -90,19 +90,6 @@ if (loaded) {
     else if (v.trim() !== "" && !/^https:\/\/\S+$/.test(v.trim())) fail(`env.gs: ${k} must be empty or an https URL, got ${v}`);
   }
 
-  // 4c. rendered home images (env.gs + assets/home, from npm run render:home)
-  const base = sandbox.HOME_IMAGES_BASE_URL;
-  if (typeof base !== "string" || (base.trim() !== "" && !/^https:\/\/\S+\/$/.test(base.trim()))) {
-    fail("env.gs: HOME_IMAGES_BASE_URL must be empty or an https URL ending in /");
-  } else if (base.trim() !== "") {
-    for (const lang of sandbox.HOME_IMAGE_LANGUAGES || []) {
-      if (!sandbox.MESSAGES[lang]) fail(`env.gs: HOME_IMAGE_LANGUAGES has ${lang}, which is not in MESSAGES`);
-      for (const name of ["chip-intro", "btn-report", "btn-how"]) {
-        if (!fs.existsSync(path.join(ROOT, "assets", "home", `${name}-${lang}.png`))) fail(`assets/home/${name}-${lang}.png missing: run npm run render:home`);
-      }
-    }
-  }
-
   // 5. environments
   const envs = Object.keys(sandbox.ENVIRONMENTS);
   const shape = (o) => JSON.stringify(Object.keys(o).sort());

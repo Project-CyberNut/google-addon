@@ -1,6 +1,6 @@
 {
   "name": "cybernut-gmail-addon",
-  "version": "2.5.8",
+  "version": "2.5.9",
   "private": true,
   "description": "CyberNut Reporting Tool - Gmail add-on (Google Apps Script)",
   "engines": {
@@ -12,7 +12,6 @@
     "build:dev": "node scripts/build.js dev",
     "build:prod": "node scripts/build.js prod",
     "push:dev": "node scripts/push.js dev",
-    "push:prod": "node scripts/push.js prod",
-    "render:home": "node scripts/render-home-images.js"
+    "push:prod": "node scripts/push.js prod"
   }
 }

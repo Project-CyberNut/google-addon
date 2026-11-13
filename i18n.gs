@@ -547,14 +547,13 @@ function readFormInput(e, name) {
  * The language dropdown, or null when the account leaves the user no choice
  * (one language is no choice at all, so nothing is rendered).
  */
-function buildLanguageSelector(ctx, opts) {
+function buildLanguageSelector(ctx) {
   if (!ctx || !ctx.identity || ctx.options.length < 2) return null;
   var dropdown = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
     .setFieldName("language")
+    .setTitle(t("common.languageSelectLabel"))
     .setOnChangeAction(CardService.newAction().setFunctionName("onLanguageChange"));
-  // compact: the home footer row (no label above the box, as in the mock).
-  if (!(opts && opts.compact)) dropdown.setTitle(t("common.languageSelectLabel"));
   ctx.options.forEach(function (code) {
     dropdown.addItem(localeOptionLabel(code), code, code === ctx.locale);
   });
@@ -572,8 +571,7 @@ async function onLanguageChange(e) {
   var ctx = await getLanguageContext(e);
   // The dropdown value is the backend's own code; keep it verbatim, since
   // the PATCH accepts only codes from the account's supported list.
-  // From the home card's language menu (action parameter), else a dropdown.
-  var raw = (e && e.parameters && e.parameters.language) || readFormInput(e, "language");
+  var raw = readFormInput(e, "language");
   var chosen = raw && ctx.options.indexOf(raw) !== -1 ? raw : null;
   console.log("onLanguageChange|", { raw: raw, chosen: chosen, offered: ctx.options });
 
@@ -590,8 +588,8 @@ async function onLanguageChange(e) {
   var saved = false;
   if (ctx.identity) saved = setPreferredLanguage(ctx.identity, chosen);
 
-  // Picked in the home card's language dropdown: redraw the home card in
-  // the new language (popToRoot in case the change came from a pushed card).
+  // Picked on the language page (showLanguagePicker, a pushed card): back to
+  // the home card (popToRoot), redrawn in the new language.
   var card = await buildHomeCard(e);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().popToRoot().updateCard(card))

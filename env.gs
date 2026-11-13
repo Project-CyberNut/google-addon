@@ -87,17 +87,6 @@ var DEFAULT_ENV = "prod";
 // thumbnail and a 30s GIF made from it, served from this public repo
 // (assets/). Before prod: confirm the final video and move both images to
 // CyberNut's own storage.
-/**
- * Rendered images for the parts of the CYB4-2596 mock that CardService can't
- * style: the Chip block (26px heading, light blue box) and the two
- * full-width buttons. Made by `npm run render:home` into assets/home/ as
- * <name>-<lang>.png for each HOME_IMAGE_LANGUAGES entry; `npm test` checks
- * every file exists. A language not listed (or an empty base URL) falls back
- * to plain CardService text and buttons.
- */
-var HOME_IMAGES_BASE_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/home/";
-var HOME_IMAGE_LANGUAGES = ["en", "es", "ar"];
-
 var OVERVIEW_VIDEO_URL = "https://www.youtube.com/watch?v=dHMQR2qz5Ow";
 var OVERVIEW_VIDEO_THUMBNAIL_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-thumbnail.jpg";
 var OVERVIEW_VIDEO_GIF_URL = "https://raw.githubusercontent.com/Project-CyberNut/google-addon/dev/assets/overview-preview.gif";
