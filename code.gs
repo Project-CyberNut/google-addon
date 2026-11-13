@@ -583,17 +583,20 @@ function homeLanguageButton(ctx) {
  * both footer buttons together on the right, so the padding widens the
  * version button leftwards. No-break space ~3.9px, thin space ~2.8px.
  *
- * Keep it small: too much and Gmail wraps the footer onto two rows (version
- * above the language button). These are the #53 values, which gave one row
- * on the dev add-on ("v 2.5.9  【ES】 Español ⌄", es 5 + 1 thin). v 2.5.9's
- * 14-15 and v 2.5.10's 17-22 nbsp both wrapped.
- *   en  6 + 1 thin   es  5 + 1 thin   ar  10 + 1 thin
- * If a language wraps, take one nbsp off (docs/runbooks/home-panel-footer.md).
+ * Too much and Gmail wraps the footer onto two rows (version above the
+ * language button). #53's values (en 6, es 5, ar 10) gave one row with the
+ * version ~60-74px in. en 20 put "v 2.5.11" in the left corner in the
+ * preview, so en is 20 and es / ar get the same +14:
+ *   en  20 + 1 thin   es  19 + 1 thin   ar  24 + 1 thin
+ * Not yet confirmed in Gmail: the earlier wraps (v 2.5.9, v 2.5.10) were seen
+ * with the language button disabled. Read the real limit with the dev-only
+ * footer tester; if a language wraps, take nbsp off
+ * (docs/runbooks/home-panel-footer.md).
  */
 var HOME_FOOTER_PADDING = {
-  en: { nbsp: 6, thin: 1 },
-  es: { nbsp: 5, thin: 1 },
-  ar: { nbsp: 10, thin: 1 },
+  en: { nbsp: 20, thin: 1 },
+  es: { nbsp: 19, thin: 1 },
+  ar: { nbsp: 24, thin: 1 },
 };
 
 function homeFooterPadding(locale, nbspOverride) {
