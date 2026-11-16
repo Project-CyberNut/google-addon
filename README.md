@@ -123,7 +123,7 @@ widgets (no rendered images), top to bottom:
    `#C9402F`) and **How reporting works** (outlined; opens the training
    onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
 4. Pinned footer, always at the bottom of the panel: the version
-   (`v 2.5.14`, a disabled grey borderless button, as on the report cards) on
+   (`v 2.5.15`, a disabled grey borderless button, as on the report cards) on
    the left and the language button ("【EN】 English ⌄") on the right. A
    fixed footer only takes Gmail buttons (no dropdown, text or image), so
    clicking the button (`showLanguagePicker()`) opens the language page: a

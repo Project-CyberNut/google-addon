@@ -21,8 +21,10 @@ History: #53 (en 6, es 5, ar 10, + 1 thin) was one row, but only because the
 button was disabled there (no "  ⌄", ~16px narrower); v 2.5.9, v 2.5.10 and
 v 2.5.11 raised it and wrapped (#57 reverted #56); v 2.5.12 moved the
 version into the card; v 2.5.13 put it back with the #53 values and wrapped,
-because the button now always shows "  ⌄"; v 2.5.14 uses en 1, es 0, ar 5
-(+ 1 thin).
+because the button now always shows "  ⌄"; v 2.5.14 used en 1, es 0, ar 5
+(+ 1 thin), one row; v 2.5.15 uses en 4, es 3, ar 8 (+ 1 thin) to move the
+version further left. If v 2.5.15 wraps in a language, go back to its
+v 2.5.14 value.
 
 The report cards' footer uses the same trick (`VERSION_FOOTER_PADDING`).
 

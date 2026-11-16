@@ -587,21 +587,23 @@ function homeLanguageButton(ctx) {
  * #53 (v 2.5.8) used en 6 / es 5 / ar 10 (+ 1 thin) and was one row only
  * because the button was disabled there (one language), so it had no "  ⌄"
  * (~16px narrower). In v 2.5.13 the button always shows "  ⌄" and those
- * values wrapped (version above the button), so each is 5 nbsp (~19.5px)
- * smaller:
- *   en  "【EN】 English  ⌄"  -> 1 + 1 thin
- *   es  "【ES】 Español  ⌄"  -> 0 + 1 thin
- *   ar  "【AR】 العربية  ⌄"   -> 5 + 1 thin
+ * values wrapped (version above the button). v 2.5.14 took 5 nbsp off
+ * (en 1, es 0, ar 5) and was one row; v 2.5.15 adds 3 back (~11.7px) to
+ * move the version as far left as fits, between the two:
+ *   en  "【EN】 English  ⌄"  -> 4 + 1 thin
+ *   es  "【ES】 Español  ⌄"  -> 3 + 1 thin
+ *   ar  "【AR】 العربية  ⌄"   -> 8 + 1 thin
  * Gmail can't put the version in the left corner (it keeps both footer
- * buttons on the right), so it sits just left of the language button.
- * DO NOT raise these: v 2.5.9 - v 2.5.11 and v 2.5.13 wrapped the footer
+ * buttons on the right); +5 over v 2.5.14 wrapped, so +3 is near the edge.
+ * If a language wraps, go back to the v 2.5.14 value for it.
+ * DO NOT raise these further: v 2.5.9 - v 2.5.11 and v 2.5.13 wrapped the footer
  * onto two rows (#57 reverted #56). If a language wraps, take one nbsp off
  * (docs/runbooks/home-panel-footer.md).
  */
 var HOME_FOOTER_PADDING = {
-  en: { nbsp: 1, thin: 1 },
-  es: { nbsp: 0, thin: 1 },
-  ar: { nbsp: 5, thin: 1 },
+  en: { nbsp: 4, thin: 1 },
+  es: { nbsp: 3, thin: 1 },
+  ar: { nbsp: 8, thin: 1 },
 };
 
 function homeFooterPadding(locale) {
