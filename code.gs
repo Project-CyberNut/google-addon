@@ -566,9 +566,9 @@ function homeButton(label, functionName, filled) {
 /**
  * The language button ("【EN】 English  ⌄"). Always clickable, like the old
  * "Onboarding Tutorial" footer button: it runs showLanguagePicker(), which
- * opens the language page with the real dropdown, or, when the account offers
- * only one language, a line saying so. (Until v 2.5.12 it was disabled in
- * that case, and Gmail greyed it out, which read as broken.)
+ * opens the language page with the dropdown (with one language, the dropdown
+ * lists just that one). Until v 2.5.12 it was disabled in that case, and
+ * Gmail greyed it out, which read as broken.
  */
 function homeLanguageButton(ctx) {
   return CardService.newTextButton()
@@ -579,17 +579,48 @@ function homeLanguageButton(ctx) {
 }
 
 /**
- * Pinned footer (always at the bottom of the panel, Spam included): only the
- * language button ("【EN】 English  ⌄"). Clicking it runs
- * showLanguagePicker(), which opens the language page with the real
- * dropdown (or, with one language offered, a line saying so).
- * The version is not in the footer: as a second footer button it had to be
- * a disabled (grey) button pushed left with invisible padding, and Gmail
- * wrapped the footer onto two rows (v 2.5.9 - v 2.5.11). It is a small grey
- * line at the bottom of the card instead (buildHomeCard).
+ * Invisible padding after the version in the home card's pinned footer, per
+ * language, to move the version left of the language button. Same trick as
+ * VERSION_FOOTER_PADDING (report cards): Gmail keeps both footer buttons
+ * together on the right, so the padding widens the version button leftwards.
+ * These are the #53 (v 2.5.8) values, the last ones that stayed on ONE row in
+ * Gmail with the "【XX】 Name  ⌄" label (label + padding ~140px):
+ *   en  "【EN】 English  ⌄"  114px -> 6 + 1 thin
+ *   es  "【ES】 Español  ⌄"  118px -> 5 + 1 thin
+ *   ar  "【AR】 العربية  ⌄"   98px -> 10 + 1 thin
+ * DO NOT raise them to push the version further left: v 2.5.9 - v 2.5.11
+ * did, and Gmail wrapped the footer onto two rows (#57 reverted #56). If a
+ * language wraps, take one nbsp off (docs/runbooks/home-panel-footer.md).
+ */
+var HOME_FOOTER_PADDING = {
+  en: { nbsp: 6, thin: 1 },
+  es: { nbsp: 5, thin: 1 },
+  ar: { nbsp: 10, thin: 1 },
+};
+
+function homeFooterPadding(locale) {
+  var pad = HOME_FOOTER_PADDING[baseLanguage(locale || "en")] || { nbsp: 0, thin: 0 };
+  return "\u00a0".repeat(pad.nbsp) + "\u2009".repeat(pad.thin);
+}
+
+/**
+ * Pinned footer (always at the bottom of the panel, Spam included): the
+ * version on the left, the language button ("【EN】 English  ⌄") on the
+ * right. A fixed footer only takes buttons, so the version is a disabled
+ * borderless button (Gmail greys it, which is the look we want), the same as
+ * onboardingFooter() on the report cards. Clicking the language button runs
+ * showLanguagePicker(), which opens the language page with the dropdown.
  */
 function homeFixedFooter(ctx) {
-  return CardService.newFixedFooter().setPrimaryButton(homeLanguageButton(ctx));
+  return CardService.newFixedFooter()
+    .setPrimaryButton(homeLanguageButton(ctx))
+    .setSecondaryButton(
+      CardService.newTextButton()
+        .setText(version + homeFooterPadding(ctx.locale) + "\u2060")
+        .setTextButtonStyle(CardService.TextButtonStyle.BORDERLESS)
+        .setDisabled(true)
+        .setOnClickAction(CardService.newAction().setFunctionName("noopAction"))
+    );
 }
 
 /**
@@ -602,16 +633,15 @@ async function showLanguagePicker(e) {
   console.log('showLanguagePicker|called!');
   try {
     const ctx = await getLanguageContext(e);
-    const selector = buildLanguageSelector(ctx);
-    var section = CardService.newCardSection();
-    if (selector) {
-      section.addWidget(selector);
-    } else {
-      // One language offered (or no account identity): say so instead of a
-      // dead button. The log says which, see docs/runbooks/home-panel-footer.md.
+    // Always the dropdown, even with one language (it then lists just that
+    // one). The log says why there's no choice, see
+    // docs/runbooks/home-panel-footer.md.
+    if (!buildLanguageSelector(ctx)) {
       console.log('showLanguagePicker|single language|', { offered: ctx.options, hasIdentity: Boolean(ctx.identity) });
-      section.addWidget(homeText(t("language.onlyOne", { language: localeLabel(ctx.locale) })));
     }
+    const selector = buildLanguageSelector(ctx, true);
+    var section = CardService.newCardSection();
+    if (selector) section.addWidget(selector);
     section.addWidget(homeText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
     var card = CardService.newCardBuilder().addSection(section).build();
     return CardService.newActionResponseBuilder()
@@ -661,10 +691,6 @@ async function buildHomeCard(e, options) {
 
   if (e) body.addWidget(homeButton(t("home.reportButton"), "handleStep1", true));
   body.addWidget(homeButton(t("home.howReportingWorks"), "openLearnAddonLink", false));
-  // Version for support, small and grey at the end of the card (not in the
-  // footer, see homeFixedFooter).
-  body.addWidget(CardService.newTextParagraph()
-    .setText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
 
   return CardService.newCardBuilder()
     .addSection(body)

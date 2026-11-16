@@ -1,40 +1,43 @@
 # Gmail add-on: home panel footer (language button)
 
-Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`).
-It holds one button, the language button ("【EN】 English ⌄"), pinned to the
-bottom of the panel (Spam included). Clicking it opens the language page
-(`showLanguagePicker()`), a pushed card with the language dropdown (or, when only one language is offered, a line saying so).
-Picking a
-language runs `onLanguageChange()`, which saves it and returns to the home
-card in that language.
+Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`),
+pinned to the bottom of the panel (Spam included). It holds two buttons: the
+version on the left (a disabled, grey, borderless button) and the language
+button ("【EN】 English ⌄") on the right. Clicking the language button opens
+the language page (`showLanguagePicker()`), a pushed card with the language
+dropdown. Picking a language runs `onLanguageChange()`, which saves it and
+returns to the home card in that language.
 
-The add-on version is not in the footer. It's a small grey line at the end of
-the card (`buildHomeCard()`).
+## The version's padding (don't widen it)
 
-## Why the version left the footer
+Gmail keeps both footer buttons together on the right; CardService has no
+alignment setting. The version is pushed left by invisible padding after it
+(`HOME_FOOTER_PADDING`: no-break spaces + a thin space, per language). Gmail
+wraps the footer onto two rows when the language label plus that padding
+goes over ~140px, and the wrap point can only be found by trial in Gmail.
+History: #53 (en 6, es 5, ar 10, + 1 thin) was one row; v 2.5.9, v 2.5.10
+and v 2.5.11 raised it and wrapped (#57 reverted #56); v 2.5.12 moved the
+version into the card; v 2.5.13 put it back with the #53 values.
 
-A Gmail fixed footer only takes buttons. The version used to be a second,
-disabled button (Gmail greys disabled buttons), pushed left with invisible
-padding. Gmail wrapped the footer onto two rows whenever that padding got
-too wide, and the wrap point can only be found by trial in Gmail: v 2.5.9,
-v 2.5.10 and v 2.5.11 all changed the padding, and #57 reverted #56. In
-v 2.5.12 the footer holds only the language button, so there's nothing to
-wrap or tune.
-
-The report cards' footer still uses that trick (`VERSION_FOOTER_PADDING`,
-measured in Gmail). Leave it alone unless it wraps.
+The report cards' footer uses the same trick (`VERSION_FOOTER_PADDING`).
 
 ## Symptoms and fixes
 
-### Language page says "… is the only language set up for your organization"
-- **Symptom:** clicking the language button opens a page with that line and
-  no dropdown. Until v 2.5.12 the button was disabled instead, and Gmail
-  greyed it out (no ⌄), which looked broken; since v 2.5.13 it is always
-  clickable, like the old "Onboarding Tutorial" button.
-- **Root cause:** the add-on offers only one language for this user, so
-  there's nothing to pick. `getLanguageContext()` gives one option when it
-  can't read the user's email/domain, when the language preference call
-  fails or returns nothing, or when the account supports one language.
+### Footer is on two rows (version above the language button)
+- **Root cause:** the version's padding plus the language label is too wide
+  for one row in Gmail, for that language.
+- **Fix:** take one nbsp off that language in `HOME_FOOTER_PADDING`
+  (`code.gs`). Never add spaces to push the version further left.
+- **Verify:** reopen the add-on in that language; the footer is one row.
+
+### Language dropdown has only one language
+- **Symptom:** the language button opens the language page, but the dropdown
+  lists only the current language. (Until v 2.5.12 the button was disabled
+  instead, and Gmail greyed it out, which looked broken.)
+- **Root cause:** the add-on offers only one language for this user.
+  `getLanguageContext()` gives one option when it can't read the user's
+  email/domain, when the language preference call fails or returns nothing,
+  or when the account supports one language.
 - **Fix:** open the Apps Script project's **Executions** page and read:
   - `showLanguagePicker|single language|`: `hasIdentity: false` means Gmail
     gave no email/domain; `offered` is the single language.
@@ -43,8 +46,8 @@ measured in Gmail). Leave it alone unless it wraps.
     ("unreadable" means the call failed), `offered` is what the button can
     switch to.
   Fix the account's supported languages, or the API call, accordingly.
-- **Verify:** reopen the add-on, click the button; the language page shows
-  the dropdown.
+- **Verify:** reopen the add-on, click the button; the dropdown lists the
+  account's languages.
 
 ### Language button does nothing on a message in Spam
 - **Root cause:** in Spam, Gmail has left an invisible layer over the bottom
