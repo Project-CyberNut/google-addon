@@ -122,17 +122,20 @@ widgets (no rendered images), top to bottom:
 3. **Report Email** (only when an email is open; filled, the mock's red
    `#C9402F`) and **How reporting works** (outlined; opens the training
    onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
-4. The version (`v 2.5.12`), small and grey, as the card's last line.
-5. Pinned footer, always at the bottom of the panel: only the language button
-   ("【EN】 English ⌄"). A fixed footer only takes Gmail buttons (no dropdown,
-   text or image), so clicking the button (`showLanguagePicker()`) opens the
-   language page: a pushed card with Gmail's back arrow and the real language
-   dropdown. Choosing a language saves it (`onLanguageChange()`) and returns
-   to the home card redrawn in that language. The version used to be a second
-   (disabled, grey) footer button pushed left with padding; Gmail wrapped the
-   footer onto two rows (v 2.5.9 - v 2.5.11), so it moved into the card.
-   With one language offered, the button is disabled. **No `Columns`:** on
-   the dev add-on Gmail drew a `Columns` widget as a blank row.
+4. Pinned footer, always at the bottom of the panel: the version
+   (`v 2.5.15`, a disabled grey borderless button, as on the report cards) on
+   the left and the language button ("【EN】 English ⌄") on the right. A
+   fixed footer only takes Gmail buttons (no dropdown, text or image), so
+   clicking the button (`showLanguagePicker()`) opens the language page: a
+   pushed card with Gmail's back arrow and the language dropdown (with one
+   language offered, the dropdown lists just that one). Choosing a language
+   saves it (`onLanguageChange()`) and returns to the home card redrawn in
+   that language. The button is always clickable (until v 2.5.12 it was
+   disabled, greyed out, with one language). The version is pushed left with
+   invisible padding (`HOME_FOOTER_PADDING`; Gmail can't put it in the left corner); more padding
+   wraps the footer onto two rows (v 2.5.9 - v 2.5.11), see the runbook.
+   **No `Columns`:** on the dev add-on Gmail drew a `Columns` widget as a
+   blank row.
 
 **Spam.** For a message in Spam the home card has no video but the same
 pinned footer. `buildHomeCard()` detects Spam itself, so a language change in
@@ -142,7 +145,7 @@ language button does nothing on a Spam message, that's the cause; the fix
 is to move the language button back into the card for Spam (a
 `DecoratedText` with the language button as its end button).
 
-Items 1-4 are one card section, so Gmail draws no dividers between them, as
+Items 1-3 are one card section, so Gmail draws no dividers between them, as
 in the mock.
 
 **Assets** live in `env.gs` as top-level constants, the same in prod and dev.

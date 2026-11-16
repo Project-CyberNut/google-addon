@@ -546,9 +546,12 @@ function readFormInput(e, name) {
 /**
  * The language dropdown, or null when the account leaves the user no choice
  * (one language is no choice at all, so nothing is rendered).
+ * `showSingle`: the language page (showLanguagePicker) always shows the
+ * dropdown, even with one language, so the button never leads nowhere.
  */
-function buildLanguageSelector(ctx) {
-  if (!ctx || !ctx.identity || ctx.options.length < 2) return null;
+function buildLanguageSelector(ctx, showSingle) {
+  if (!ctx || !ctx.options.length) return null;
+  if (!showSingle && (!ctx.identity || ctx.options.length < 2)) return null;
   var dropdown = CardService.newSelectionInput()
     .setType(CardService.SelectionInputType.DROPDOWN)
     .setFieldName("language")
