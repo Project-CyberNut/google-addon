@@ -15,9 +15,14 @@ alignment setting. The version is pushed left by invisible padding after it
 (`HOME_FOOTER_PADDING`: no-break spaces + a thin space, per language). Gmail
 wraps the footer onto two rows when the language label plus that padding
 goes over ~140px, and the wrap point can only be found by trial in Gmail.
-History: #53 (en 6, es 5, ar 10, + 1 thin) was one row; v 2.5.9, v 2.5.10
-and v 2.5.11 raised it and wrapped (#57 reverted #56); v 2.5.12 moved the
-version into the card; v 2.5.13 put it back with the #53 values.
+Gmail can't put the version in the left corner; it sits just left of the
+language button.
+History: #53 (en 6, es 5, ar 10, + 1 thin) was one row, but only because the
+button was disabled there (no "  ⌄", ~16px narrower); v 2.5.9, v 2.5.10 and
+v 2.5.11 raised it and wrapped (#57 reverted #56); v 2.5.12 moved the
+version into the card; v 2.5.13 put it back with the #53 values and wrapped,
+because the button now always shows "  ⌄"; v 2.5.14 uses en 1, es 0, ar 5
+(+ 1 thin).
 
 The report cards' footer uses the same trick (`VERSION_FOOTER_PADDING`).
 

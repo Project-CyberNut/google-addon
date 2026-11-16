@@ -123,7 +123,7 @@ widgets (no rendered images), top to bottom:
    `#C9402F`) and **How reporting works** (outlined; opens the training
    onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
 4. Pinned footer, always at the bottom of the panel: the version
-   (`v 2.5.13`, a disabled grey borderless button, as on the report cards) on
+   (`v 2.5.14`, a disabled grey borderless button, as on the report cards) on
    the left and the language button ("【EN】 English ⌄") on the right. A
    fixed footer only takes Gmail buttons (no dropdown, text or image), so
    clicking the button (`showLanguagePicker()`) opens the language page: a
@@ -132,7 +132,7 @@ widgets (no rendered images), top to bottom:
    saves it (`onLanguageChange()`) and returns to the home card redrawn in
    that language. The button is always clickable (until v 2.5.12 it was
    disabled, greyed out, with one language). The version is pushed left with
-   invisible padding (`HOME_FOOTER_PADDING`, the #53 values); more padding
+   invisible padding (`HOME_FOOTER_PADDING`; Gmail can't put it in the left corner); more padding
    wraps the footer onto two rows (v 2.5.9 - v 2.5.11), see the runbook.
    **No `Columns`:** on the dev add-on Gmail drew a `Columns` widget as a
    blank row.
