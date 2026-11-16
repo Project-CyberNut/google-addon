@@ -14,7 +14,7 @@ user's CyberNut account.
 | `.github/workflows/deploy.yml` | CI: checks on pull requests; build and `clasp push` on merges to `dev` and `main`. |
 | `env.gs` | Prod and dev configuration: every URL, API Gateway id and label that differs between environments, selected by `ADDON_ENV`. |
 | `code.gs` | Report flow: home card, step 1 (what did you click), step 2 (forward to IT). |
-| `i18n.gs` | Locale registry, message catalogues, locale resolution, language dropdown. |
+| `i18n.gs` | Locale registry, message catalogues, locale resolution, language list (radio buttons). |
 | `languageApi.gs` | Unification-platform language routes (supported / preferred language). |
 
 ## Build and deploy
@@ -123,12 +123,15 @@ widgets (no rendered images), top to bottom:
    `#C9402F`) and **How reporting works** (outlined; opens the training
    onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
 4. Pinned footer, always at the bottom of the panel: the version
-   (`v 2.5.15`, a disabled grey borderless button, as on the report cards) on
+   (`v 2.5.17`, a disabled grey borderless button, as on the report cards) on
    the left and the language button ("【EN】 English ⌄") on the right. A
    fixed footer only takes Gmail buttons (no dropdown, text or image), so
    clicking the button (`showLanguagePicker()`) opens the language page: a
-   pushed card with Gmail's back arrow and the language dropdown (with one
-   language offered, the dropdown lists just that one). Choosing a language
+   pushed card with Gmail's back arrow listing every language as a radio
+   button, the current one ticked (with one language offered, the list has
+   just that one). Only one can be ticked; it is not a checkbox list, since a
+   language is a single choice. The page shows nothing else (no version line
+   since v 2.5.17; a dropdown until then). Ticking a language
    saves it (`onLanguageChange()`) and returns to the home card redrawn in
    that language. The button is always clickable (until v 2.5.12 it was
    disabled, greyed out, with one language). The version is pushed left with
@@ -170,7 +173,7 @@ of the mock are not matched:
   colours. The blue header bar title is Gmail's own (it shows the add-on
   name).
 - **Language dropdown in the footer:** a fixed footer only takes buttons, so
-  the footer has a language button and the dropdown is on the language page.
+  the footer has a language button and the language list is on the language page.
 - **Video:** it cannot play inside Gmail. Cards have no video widget or
   iframe, and Gmail opened links in a new tab even with `OpenAs.OVERLAY` (and
   with `OnClose.RELOAD`, tried in #47). So the video plays as a silent looping
@@ -227,13 +230,13 @@ GET   /public/users/preferences?domain=acme.org&email=jane@acme.org
 PATCH /public/users/preferences?domain=acme.org&email=jane@acme.org&lang=es
 ```
 
-**Which languages the dropdown offers**: exactly the account's supported
+**Which languages the language list offers**: exactly the account's supported
 list from the preferences GET, in the backend's order,
 using the backend's codes. Admins add or remove languages there; nothing in
 the add-on changes. Each option shows the code in capitals and the native
 name derived from it (`Intl.DisplayNames`), e.g. `【ES】 Español`. If fewer than two remain,
-the dropdown is hidden and that one language is used. If the list cannot be
-read at all (unknown domain, network), the dropdown is hidden
+the language page lists just that one language. If the list cannot be
+read at all (unknown domain, network), the language page lists only English
 and the card stays in English; the backend is the only source of the offer.
 
 **Which language a card renders in**, first match wins:
