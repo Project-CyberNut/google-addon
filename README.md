@@ -132,6 +132,11 @@ only, the `trashEmail` answer from `admindomainsgoogle`. Step 1 still calls
 `admindomainsgoogle` to route simulation emails. Runbook:
 [docs/runbooks/report-forwarding-and-trash.md](docs/runbooks/report-forwarding-and-trash.md).
 
+**Message id.** Gmail can send a button click without the message context
+(Split Pane, CYB2-1457), so the report buttons pass the Gmail message id
+forward as an action parameter and handlers read it with `eventMessageId(e)`.
+Runbook: [docs/runbooks/report-split-pane.md](docs/runbooks/report-split-pane.md).
+
 ## Localization
 
 The behaviour mirrors `user-portal-micro-learning-v2` (`src/i18n/config.ts`,
