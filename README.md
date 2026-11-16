@@ -122,7 +122,7 @@ widgets (no rendered images), top to bottom:
 3. **Report Email** (only when an email is open; filled, the mock's red
    `#C9402F`) and **How reporting works** (outlined; opens the training
    onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
-4. The version (`v 2.5.12`), small and grey, as the card's last line.
+4. The version (`v 2.5.13`), small and grey, as the card's last line.
 5. Pinned footer, always at the bottom of the panel: only the language button
    ("【EN】 English ⌄"). A fixed footer only takes Gmail buttons (no dropdown,
    text or image), so clicking the button (`showLanguagePicker()`) opens the
@@ -131,7 +131,10 @@ widgets (no rendered images), top to bottom:
    to the home card redrawn in that language. The version used to be a second
    (disabled, grey) footer button pushed left with padding; Gmail wrapped the
    footer onto two rows (v 2.5.9 - v 2.5.11), so it moved into the card.
-   With one language offered, the button is disabled. **No `Columns`:** on
+   The button is always clickable: with one language offered, the language
+   page says "English is the only language set up for your organization"
+   instead of showing the dropdown (until v 2.5.12 the button was disabled
+   and greyed out). **No `Columns`:** on
    the dev add-on Gmail drew a `Columns` widget as a blank row.
 
 **Spam.** For a message in Spam the home card has no video but the same

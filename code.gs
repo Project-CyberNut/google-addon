@@ -564,24 +564,25 @@ function homeButton(label, functionName, filled) {
 }
 
 /**
- * The language button ("【EN】 English  ⌄"). Clicking it runs
- * showLanguagePicker(), which opens the language page with the real
- * dropdown. Disabled, without the arrow, when only one language is offered.
+ * The language button ("【EN】 English  ⌄"). Always clickable, like the old
+ * "Onboarding Tutorial" footer button: it runs showLanguagePicker(), which
+ * opens the language page with the real dropdown, or, when the account offers
+ * only one language, a line saying so. (Until v 2.5.12 it was disabled in
+ * that case, and Gmail greyed it out, which read as broken.)
  */
 function homeLanguageButton(ctx) {
-  var canPick = buildLanguageSelector(ctx) !== null;
   return CardService.newTextButton()
-    .setText(localeOptionLabel(ctx.locale) + (canPick ? "  ⌄" : ""))
+    .setText(localeOptionLabel(ctx.locale) + "  ⌄")
     .setTextButtonStyle(CardService.TextButtonStyle.OUTLINED)
-    .setDisabled(!canPick)
-    .setOnClickAction(CardService.newAction().setFunctionName(canPick ? "showLanguagePicker" : "noopAction"));
+    .setDisabled(false)
+    .setOnClickAction(CardService.newAction().setFunctionName("showLanguagePicker"));
 }
 
 /**
  * Pinned footer (always at the bottom of the panel, Spam included): only the
  * language button ("【EN】 English  ⌄"). Clicking it runs
  * showLanguagePicker(), which opens the language page with the real
- * dropdown. With one language offered the button is disabled (greyed, no ⌄).
+ * dropdown (or, with one language offered, a line saying so).
  * The version is not in the footer: as a second footer button it had to be
  * a disabled (grey) button pushed left with invisible padding, and Gmail
  * wrapped the footer onto two rows (v 2.5.9 - v 2.5.11). It is a small grey
@@ -603,7 +604,14 @@ async function showLanguagePicker(e) {
     const ctx = await getLanguageContext(e);
     const selector = buildLanguageSelector(ctx);
     var section = CardService.newCardSection();
-    if (selector) section.addWidget(selector);
+    if (selector) {
+      section.addWidget(selector);
+    } else {
+      // One language offered (or no account identity): say so instead of a
+      // dead button. The log says which, see docs/runbooks/home-panel-footer.md.
+      console.log('showLanguagePicker|single language|', { offered: ctx.options, hasIdentity: Boolean(ctx.identity) });
+      section.addWidget(homeText(t("language.onlyOne", { language: localeLabel(ctx.locale) })));
+    }
     section.addWidget(homeText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
     var card = CardService.newCardBuilder().addSection(section).build();
     return CardService.newActionResponseBuilder()

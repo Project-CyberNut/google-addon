@@ -3,7 +3,8 @@
 Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`).
 It holds one button, the language button ("【EN】 English ⌄"), pinned to the
 bottom of the panel (Spam included). Clicking it opens the language page
-(`showLanguagePicker()`), a pushed card with the language dropdown. Picking a
+(`showLanguagePicker()`), a pushed card with the language dropdown (or, when only one language is offered, a line saying so).
+Picking a
 language runs `onLanguageChange()`, which saves it and returns to the home
 card in that language.
 
@@ -25,18 +26,25 @@ measured in Gmail). Leave it alone unless it wraps.
 
 ## Symptoms and fixes
 
-### Language button is greyed out (no ⌄) and does nothing
+### Language page says "… is the only language set up for your organization"
+- **Symptom:** clicking the language button opens a page with that line and
+  no dropdown. Until v 2.5.12 the button was disabled instead, and Gmail
+  greyed it out (no ⌄), which looked broken; since v 2.5.13 it is always
+  clickable, like the old "Onboarding Tutorial" button.
 - **Root cause:** the add-on offers only one language for this user, so
   there's nothing to pick. `getLanguageContext()` gives one option when it
   can't read the user's email/domain, when the language preference call
   fails or returns nothing, or when the account supports one language.
-- **Fix:** open the Apps Script project's **Executions** page, find the
-  latest `HomePage` run and read the `getLanguageContext|resolved|` line:
-  `supported` is what the account's language API returned ("unreadable"
-  means the call failed), `offered` is what the button can switch to. Fix
-  the account's supported languages, or the API call, accordingly.
-- **Verify:** reopen the add-on; the button shows ⌄ and opens the language
-  page.
+- **Fix:** open the Apps Script project's **Executions** page and read:
+  - `showLanguagePicker|single language|`: `hasIdentity: false` means Gmail
+    gave no email/domain; `offered` is the single language.
+  - `getLanguageContext|resolved|` (in the same or the latest `HomePage`
+    run): `supported` is what the account's language API returned
+    ("unreadable" means the call failed), `offered` is what the button can
+    switch to.
+  Fix the account's supported languages, or the API call, accordingly.
+- **Verify:** reopen the add-on, click the button; the language page shows
+  the dropdown.
 
 ### Language button does nothing on a message in Spam
 - **Root cause:** in Spam, Gmail has left an invisible layer over the bottom

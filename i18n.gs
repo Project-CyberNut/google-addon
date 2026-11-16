@@ -102,6 +102,7 @@ var MESSAGES = {
       updated: "Language updated.",
       savedLocallyOnly: "Language changed, but your preference could not be saved to your account.",
       invalid: "That language is not available.",
+      onlyOne: "{language} is the only language set up for your organization.",
     },
   },
 
@@ -151,6 +152,7 @@ var MESSAGES = {
       updated: "Idioma actualizado.",
       savedLocallyOnly: "El idioma cambió, pero no se pudo guardar tu preferencia en tu cuenta.",
       invalid: "Ese idioma no está disponible.",
+      onlyOne: "{language} es el único idioma configurado para tu organización.",
     },
   },
 
@@ -200,6 +202,7 @@ var MESSAGES = {
       updated: "تم تحديث اللغة.",
       savedLocallyOnly: "تم تغيير اللغة، لكن لم نتمكن من حفظ تفضيلك في حسابك.",
       invalid: "هذه اللغة غير متاحة.",
+      onlyOne: "{language} هي اللغة الوحيدة المُعدّة لمؤسستك.",
     },
   },
 };
