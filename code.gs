@@ -455,7 +455,6 @@ function hasUrl(value) {
  * of the mock are not matched (see README "Home panel").
  */
 var HOME_TEXT_COLOR = "#1B1F3B";   // mock body text
-var HOME_MUTED_COLOR = "#4A4F66";  // mock footer text
 
 function homeText(html) {
   return CardService.newTextParagraph()
@@ -566,8 +565,8 @@ function homeButton(label, functionName, filled) {
 /**
  * The language button ("【EN】 English  ⌄"). Always clickable, like the old
  * "Onboarding Tutorial" footer button: it runs showLanguagePicker(), which
- * opens the language page with the dropdown (with one language, the dropdown
- * lists just that one). Until v 2.5.12 it was disabled in that case, and
+ * opens the language page with every language as a radio button (with one
+ * language, the list has just that one). Until v 2.5.12 it was disabled in that case, and
  * Gmail greyed it out, which read as broken.
  */
 function homeLanguageButton(ctx) {
@@ -617,7 +616,7 @@ function homeFooterPadding(locale) {
  * right. A fixed footer only takes buttons, so the version is a disabled
  * borderless button (Gmail greys it, which is the look we want), the same as
  * onboardingFooter() on the report cards. Clicking the language button runs
- * showLanguagePicker(), which opens the language page with the dropdown.
+ * showLanguagePicker(), which opens the language page (radio button list).
  */
 function homeFixedFooter(ctx) {
   return CardService.newFixedFooter()
@@ -633,7 +632,8 @@ function homeFixedFooter(ctx) {
 
 /**
  * Language button: opens the language page (a pushed card, so Gmail shows
- * its back arrow) with the real dropdown. Choosing a language runs
+ * its back arrow) listing every language as a radio button, and nothing
+ * else (no version line since v 2.5.17). Ticking a language runs
  * onLanguageChange(), which saves it and returns to the home card
  * (popToRoot) redrawn in that language.
  */
@@ -641,8 +641,8 @@ async function showLanguagePicker(e) {
   console.log('showLanguagePicker|called!');
   try {
     const ctx = await getLanguageContext(e);
-    // Always the dropdown, even with one language (it then lists just that
-    // one). The log says why there's no choice, see
+    // Always the language list, even with one language (it then lists just
+    // that one). The log says why there's no choice, see
     // docs/runbooks/home-panel-footer.md.
     if (!buildLanguageSelector(ctx)) {
       console.log('showLanguagePicker|single language|', { offered: ctx.options, hasIdentity: Boolean(ctx.identity) });
@@ -650,7 +650,6 @@ async function showLanguagePicker(e) {
     const selector = buildLanguageSelector(ctx, true);
     var section = CardService.newCardSection();
     if (selector) section.addWidget(selector);
-    section.addWidget(homeText('<font color="' + HOME_MUTED_COLOR + '">' + version + "</font>"));
     var card = CardService.newCardBuilder().addSection(section).build();
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().pushCard(card))

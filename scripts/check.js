@@ -68,6 +68,15 @@ if (loaded) {
   for (const f of sources) for (const m of read(f).matchAll(/\bt\("([^"]+)"/g)) used.add(m[1]);
   for (const k of used) if (!en.has(k)) fail(`t("${k}") used but not in MESSAGES.en`);
 
+  // 3b. language page (CYB4-2596, v 2.5.17): radio list only, no version line
+  const i18nSrc = read("i18n.gs");
+  const selectorFn = i18nSrc.slice(i18nSrc.indexOf("function buildLanguageSelector"), i18nSrc.indexOf("async function onLanguageChange"));
+  if (!/SelectionInputType\.RADIO_BUTTON/.test(selectorFn)) fail("i18n.gs: buildLanguageSelector must use SelectionInputType.RADIO_BUTTON (see docs/runbooks/home-panel-footer.md)");
+  const codeSrc = read("code.gs");
+  const pickerStart = codeSrc.indexOf("async function showLanguagePicker");
+  const pickerFn = codeSrc.slice(pickerStart, codeSrc.indexOf("\n}\n", pickerStart));
+  if (pickerStart < 0 || /\bversion\b/.test(pickerFn.replace(/\/\/.*$/gm, ""))) fail("code.gs: showLanguagePicker must not show the version (see docs/runbooks/home-panel-footer.md)");
+
   // 4. no hard-coded hosts outside env.gs (templates with ${...} ids are fine)
   const hostPattern = /https?:\/\/(?!\$\{)[a-z0-9-]+(\.[a-z0-9-]+)+/gi;
   for (const f of sources.filter((s) => s !== "env.gs")) {

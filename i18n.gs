@@ -16,7 +16,7 @@
  *               user), then PATCH the preference to the account
  *
  * Card copy: MESSAGES holds the catalogues we ship. A language the backend
- * offers but we have no catalogue for still appears in the dropdown (its name
+ * offers but we have no catalogue for still appears in the language list (its name
  * is derived from its code), is saved to the account, and renders the
  * card copy in English until a catalogue is added. Keep every catalogue's
  * keys in sync with `en`; `t()` falls back to English for a missing key.
@@ -26,7 +26,7 @@
  * Display overrides, keyed by language code, for when CLDR's derived answer
  * is not the one wanted. Normally empty: the native name comes from
  * Intl.DisplayNames and the direction from the locale's text info.
- *   label    native name shown in the dropdown (never translated)
+ *   label    native name shown in the language list (never translated)
  *   rtl      true/false
  * Example: `"pt": { label: "Português" }`
  */
@@ -35,7 +35,7 @@ var LOCALE_OVERRIDES = {};
 /** Used only when `Intl.Locale` cannot tell us; CLDR knows the rest. */
 var RTL_FALLBACK = ["ar", "he", "fa", "ur"];
 
-/** A language tag we are willing to put in the dropdown: BCP 47 shaped. */
+/** A language tag we are willing to put in the language list: BCP 47 shaped. */
 var LANGUAGE_TAG_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
 
 var DEFAULT_LOCALE = "en";
@@ -269,8 +269,8 @@ function localeLabel(code) {
 }
 
 /**
- * What a dropdown row shows: the language code, as the portal's picker badges
- * it, then the native name, e.g. "【ES】 Español". CardService dropdown items
+ * What a language row shows: the language code, as the portal's picker badges
+ * it, then the native name, e.g. "【ES】 Español". CardService selection items
  * are plain text, so lenticular brackets stand in for the portal's pill.
  */
 function localeOptionLabel(code) {
@@ -426,11 +426,11 @@ async function resolveRegion(domain) {
 }
 
 /**
- * What the dropdown offers: exactly the account's supported list, in the
+ * What the language list offers: exactly the account's supported list, in the
  * backend's order, with the backend's own codes (the PATCH only accepts
  * those). Malformed entries and duplicates are dropped. Unreadable list
  * (network, 401 missing key, 404 unknown domain) or configured-empty ->
- * English only, which hides the dropdown: the backend is the only source of
+ * English only, which hides the language list: the backend is the only source of
  * the offer, so when it cannot answer we offer nothing rather than a guess.
  */
 function resolveOptions(supported) {
@@ -466,7 +466,7 @@ var languageContextMemo = null;
  * Everything a card needs to speak the user's language and offer a switch:
  *   { locale, options, identity }
  * `identity` is null when the active user's email is unavailable; the
- * dropdown is then hidden and the locale comes from the device.
+ * language list is then hidden and the locale comes from the device.
  *
  * Also sets `currentLocale`, so `t()` works for the rest of the execution.
  */
@@ -544,27 +544,30 @@ function readFormInput(e, name) {
 }
 
 /**
- * The language dropdown, or null when the account leaves the user no choice
- * (one language is no choice at all, so nothing is rendered).
+ * The language list: every offered language as a radio button (all visible,
+ * only one ticked, the current one), or null when the account leaves the
+ * user no choice (one language is no choice at all, so nothing is rendered).
+ * Radio, not checkboxes: a language is a single choice, and a checkbox list
+ * would allow two ticks or none (CYB4-2596, v 2.5.17; a dropdown until then).
  * `showSingle`: the language page (showLanguagePicker) always shows the
- * dropdown, even with one language, so the button never leads nowhere.
+ * list, even with one language, so the button never leads nowhere.
  */
 function buildLanguageSelector(ctx, showSingle) {
   if (!ctx || !ctx.options.length) return null;
   if (!showSingle && (!ctx.identity || ctx.options.length < 2)) return null;
-  var dropdown = CardService.newSelectionInput()
-    .setType(CardService.SelectionInputType.DROPDOWN)
+  var list = CardService.newSelectionInput()
+    .setType(CardService.SelectionInputType.RADIO_BUTTON)
     .setFieldName("language")
     .setTitle(t("common.languageSelectLabel"))
     .setOnChangeAction(CardService.newAction().setFunctionName("onLanguageChange"));
   ctx.options.forEach(function (code) {
-    dropdown.addItem(localeOptionLabel(code), code, code === ctx.locale);
+    list.addItem(localeOptionLabel(code), code, code === ctx.locale);
   });
-  return dropdown;
+  return list;
 }
 
 /**
- * Dropdown handler. Same write order as the portal's saveLanguageChoice():
+ * Language list handler (ticking a language). Same write order as the portal's saveLanguageChoice():
  * remember locally first (so a rejected or unreachable PATCH never strands
  * the user on a language they just left), then persist on the account, then
  * redraw the home card in the new language.
@@ -572,7 +575,7 @@ function buildLanguageSelector(ctx, showSingle) {
 async function onLanguageChange(e) {
   console.log("onLanguageChange|called!");
   var ctx = await getLanguageContext(e);
-  // The dropdown value is the backend's own code; keep it verbatim, since
+  // The ticked value is the backend's own code; keep it verbatim, since
   // the PATCH accepts only codes from the account's supported list.
   var raw = readFormInput(e, "language");
   var chosen = raw && ctx.options.indexOf(raw) !== -1 ? raw : null;

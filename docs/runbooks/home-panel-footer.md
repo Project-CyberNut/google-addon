@@ -4,9 +4,11 @@ Covers the pinned footer on the home card (`homeFixedFooter()` in `code.gs`),
 pinned to the bottom of the panel (Spam included). It holds two buttons: the
 version on the left (a disabled, grey, borderless button) and the language
 button ("【EN】 English ⌄") on the right. Clicking the language button opens
-the language page (`showLanguagePicker()`), a pushed card with the language
-dropdown. Picking a language runs `onLanguageChange()`, which saves it and
-returns to the home card in that language.
+the language page (`showLanguagePicker()`), a pushed card listing every
+language as a radio button (current one ticked) and nothing else. Ticking a
+language runs `onLanguageChange()`, which saves it and returns to the home
+card in that language. Until v 2.5.16 the page had a dropdown and the version
+line under it; v 2.5.17 (CYB4-2596) made it the radio list with no version.
 
 ## The version's padding (don't widen it)
 
@@ -37,9 +39,9 @@ The report cards' footer uses the same trick (`VERSION_FOOTER_PADDING`).
   (`code.gs`). Never add spaces to push the version further left.
 - **Verify:** reopen the add-on in that language; the footer is one row.
 
-### Language dropdown has only one language
-- **Symptom:** the language button opens the language page, but the dropdown
-  lists only the current language. (Until v 2.5.12 the button was disabled
+### Language page lists only one language
+- **Symptom:** the language button opens the language page, but the list
+  has only the current language. (Until v 2.5.12 the button was disabled
   instead, and Gmail greyed it out, which looked broken.)
 - **Root cause:** the add-on offers only one language for this user.
   `getLanguageContext()` gives one option when it can't read the user's
@@ -53,8 +55,8 @@ The report cards' footer uses the same trick (`VERSION_FOOTER_PADDING`).
     ("unreadable" means the call failed), `offered` is what the button can
     switch to.
   Fix the account's supported languages, or the API call, accordingly.
-- **Verify:** reopen the add-on, click the button; the dropdown lists the
-  account's languages.
+- **Verify:** reopen the add-on, click the button; the page lists the
+  account's languages as radio buttons.
 
 ### Language button does nothing on a message in Spam
 - **Root cause:** in Spam, Gmail has left an invisible layer over the bottom
@@ -67,6 +69,15 @@ The report cards' footer uses the same trick (`VERSION_FOOTER_PADDING`).
 - **Verify:** open a message in Spam, click the language button, and check the
   language page opens; pick a language and check the home card comes back in
   it.
+
+### Language page shows a dropdown, checkboxes, or the version again
+- **Root cause:** `buildLanguageSelector()` (`i18n.gs`) was changed back from
+  `SelectionInputType.RADIO_BUTTON`, or `showLanguagePicker()` (`code.gs`)
+  added the version widget back.
+- **Fix:** use `RADIO_BUTTON` (one choice; `CHECK_BOX` allows two ticks or
+  none, and `readFormInput()` reads only the first ticked value) and add only
+  the selector to the page. `npm test` fails on either regression.
+- **Verify:** click the language button; the page shows only the radio list.
 
 ### Picking a language doesn't change the card
 - **Root cause:** `onLanguageChange()` only accepts a code from the account's
