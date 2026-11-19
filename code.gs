@@ -696,8 +696,9 @@ async function buildHomeCard(e, options) {
   addChipIntro(body);
   if (!spam) addOverviewVideo(body, Boolean(options && options.videoPlaying));
 
-  if (e) body.addWidget(homeButton(t("home.reportButton"), "handleStep1", true));
+  // How reporting works above Report Email (swapped in v 2.5.18).
   body.addWidget(homeButton(t("home.howReportingWorks"), "openLearnAddonLink", false));
+  if (e) body.addWidget(homeButton(t("home.reportButton"), "handleStep1", true));
 
   return CardService.newCardBuilder()
     .addSection(body)

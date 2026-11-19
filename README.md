@@ -119,11 +119,12 @@ widgets (no rendered images), top to bottom:
    `i18n.gs`).
 2. "See an overview of CyberNut": a thumbnail with a play button. Clicking it
    plays the video as a GIF in the panel (see **Video** below).
-3. **Report Email** (only when an email is open; filled, the mock's red
-   `#C9402F`) and **How reporting works** (outlined; opens the training
-   onboarding page, as "Onboarding Tutorial" did). Both are Gmail buttons.
+3. **How reporting works** (outlined; opens the training onboarding page,
+   as "Onboarding Tutorial" did), then **Report Email** below it (only when
+   an email is open; filled, the mock's red `#C9402F`). Both are Gmail
+   buttons. Until v 2.5.18 Report Email came first.
 4. Pinned footer, always at the bottom of the panel: the version
-   (`v 2.5.17`, a disabled grey borderless button, as on the report cards) on
+   (`v 2.5.18`, a disabled grey borderless button, as on the report cards) on
    the left and the language button ("【EN】 English ⌄") on the right. A
    fixed footer only takes Gmail buttons (no dropdown, text or image), so
    clicking the button (`showLanguagePicker()`) opens the language page: a
