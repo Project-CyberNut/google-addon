@@ -53,7 +53,9 @@ both builds without pushing. See `.github/workflows/deploy.yml`.
 2. Locally: `clasp login`, then copy `~/.clasprc.json` into the GitHub secret
    `CLASPRC_JSON` (Settings -> Secrets and variables -> Actions). Use an
    account with edit access to both Apps Script projects, ideally a service
-   account-like shared account rather than a personal one.
+   account-like shared account rather than a personal one. If the Push step
+   later fails with `invalid_rapt`, this login expired: see
+   [docs/runbooks/deploy-clasp-login-expired.md](docs/runbooks/deploy-clasp-login-expired.md).
 3. Repository variables: `SCRIPT_ID_DEV` and `SCRIPT_ID_PROD` (the id in each
    project's URL, `script.google.com/.../projects/<id>/edit`). Optional:
    `DEPLOYMENT_ID_DEV` / `DEPLOYMENT_ID_PROD` so a push also moves that
