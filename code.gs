@@ -679,7 +679,8 @@ async function handleStep2(e) {
     }
     console.log('handleStep2|selectedItems|', { selectedItems });
 
-    // Fetch message once — reused for sender, body, IDs, trash, and thread check
+    // Fetch message once — reused for sender, body, IDs, trash, and thread check.
+    // rawContent is read only to parse the exact From/Subject headers; it is not sent.
     var messageId = e.messageMetadata.messageId;
     var mailMessage = GmailApp.getMessageById(messageId);
     var rawContent = mailMessage.getRawContent();
@@ -718,20 +719,23 @@ async function handleStep2(e) {
 
     adminMessageForThirdStep = settings.confirmationMessage;
 
+    // Identifiers only: no rawContent / emailtemplate. The backend fetches the
+    // message itself from Gmail by message_id / sourceId, and shipping the raw
+    // MIME inline put a message with a multi-MB inline image over the API
+    // Gateway -> Lambda request limit, so the report was dropped while this
+    // card still said thank you (CYB2-1485).
     const payload = {
       domain: domainNameTo,
       fromAddress: sender,
       destination: to,
       action: "FORWARD_SUSPICIOUS_EMAIL",
       message_id: messageIdOrg,
-      emailtemplate: bodyHtml,
       provider: "google",
       triggerBoth: true,
       email: settings.forwardSuspiciousEmail,
       subject: subject,
       body: selectedItems.join(", "),
       source: "gmail",
-      rawContent: rawContent,
       AttachmentIds: attachmentIds,
       sourceId: messageId,
       clientType: "google add on"
