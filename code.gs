@@ -74,8 +74,32 @@ async function region(domainNameTo) {
   }
 }
 
+/**
+ * Gmail message id for an add-on event, wherever Gmail put it. Gmail does
+ * not always resend the message context on a button click: in Split Pane
+ * (reading pane right of / below the inbox) the action event can arrive
+ * without `messageMetadata` (CYB2-1457). So every report button passes the
+ * id forward as an action parameter, and handlers read it here first.
+ * Returns null when no id is available anywhere.
+ */
+function eventMessageId(e) {
+  return (e && e.parameters && e.parameters.messageId) ||
+    (e && e.messageMetadata && e.messageMetadata.messageId) ||
+    (e && e.gmail && e.gmail.messageId) ||
+    (e && e.commonEventObject && e.commonEventObject.parameters &&
+      e.commonEventObject.parameters.messageId) ||
+    null;
+}
+
+/** Report action that carries the message id forward (see eventMessageId). */
+function reportAction(functionName, messageId) {
+  var action = CardService.newAction().setFunctionName(functionName);
+  if (messageId) action.setParameters({ messageId: String(messageId) });
+  return action;
+}
+
 function foundReportUrl(e) {
-  const msgId = e?.messageMetadata?.messageId || e?.gmail?.messageId;
+  const msgId = eventMessageId(e);
   console.log('foundReportUrl|called!', { messageId: msgId });
   if (!msgId) return false;
   const message = GmailApp.getMessageById(msgId);
@@ -451,7 +475,7 @@ async function buildHomeCard(e) {
     .setText(t("home.reportButton"))
     .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
     .setBackgroundColor("#D83025")
-    .setOnClickAction(CardService.newAction().setFunctionName("handleStep1"));
+    .setOnClickAction(reportAction("handleStep1", eventMessageId(e)));
 
   var builder = CardService.newCardBuilder();
 
@@ -532,9 +556,13 @@ async function handleStep1(e) {
   }
 
   // Fetch message once — reused throughout the function
-  if (e?.messageMetadata?.messageId) {
-    console.log('handleStep1|messageId:', e.messageMetadata.messageId);
-    mailMessage = GmailApp.getMessageById(e.messageMetadata.messageId);
+  const step1MessageId = eventMessageId(e);
+  console.log('handleStep1|messageId:', step1MessageId, {
+    fromParameters: Boolean(e && e.parameters && e.parameters.messageId),
+    hasMessageMetadata: Boolean(e && e.messageMetadata),
+  });
+  if (step1MessageId) {
+    mailMessage = GmailApp.getMessageById(step1MessageId);
     bodyHtml = mailMessage ? mailMessage.getBody() : " ";
   }
 
@@ -543,11 +571,11 @@ async function handleStep1(e) {
 
     var reportButton = CardService.newTextButton()
       .setText(t("home.reportButton"))
-      .setOnClickAction(CardService.newAction().setFunctionName("handleStep2"))
+      .setOnClickAction(reportAction("handleStep2", step1MessageId))
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setBackgroundColor("#D83025");
 
-    if (!e?.messageMetadata?.messageId) {
+    if (!mailMessage) {
       console.log('handleStep1|no messageId|showing open-email prompt');
       var cardBuilder = CardService.newCardBuilder();
       var section = CardService.newCardSection();
@@ -679,8 +707,22 @@ async function handleStep2(e) {
     }
     console.log('handleStep2|selectedItems|', { selectedItems });
 
-    // Fetch message once — reused for sender, body, IDs, trash, and thread check
-    var messageId = e.messageMetadata.messageId;
+    // Fetch message once — reused for sender, body, IDs, trash, and thread check.
+    // The id comes from the button's parameters first: in Split Pane, Gmail
+    // can send this click without messageMetadata (CYB2-1457).
+    var messageId = eventMessageId(e);
+    console.log('handleStep2|messageId:', messageId, {
+      fromParameters: Boolean(e && e.parameters && e.parameters.messageId),
+      hasMessageMetadata: Boolean(e && e.messageMetadata),
+    });
+    if (!messageId) {
+      console.log('handleStep2|no messageId|showing open-email prompt');
+      await callErrorReportingApi("handleStep2 no messageId (CYB2-1457)", " ");
+      return CardService.newCardBuilder()
+        .addSection(CardService.newCardSection()
+          .addWidget(CardService.newTextParagraph().setText(t("step1.openEmailPrompt"))))
+        .build();
+    }
     var mailMessage = GmailApp.getMessageById(messageId);
     var rawContent = mailMessage.getRawContent();
     var fromMatch = rawContent.match(/^From:\s*(.+)/im);
