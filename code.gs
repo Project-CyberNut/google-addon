@@ -87,6 +87,10 @@ function foundReportUrl(e) {
 }
 
 
+// The backend stores this tenant lowercase; a mixed-case address (CyberNut.onmicrosoft.com) misses it. Other domains pass through unchanged.
+function normalizeAccountDomain(domain) {
+  return domain && domain.toLowerCase() === 'cybernut.onmicrosoft.com' ? domain.toLowerCase() : domain;
+}
 
 function cybernutDomains(senderDomain) {
   if (!senderDomain) {
@@ -795,7 +799,7 @@ async function handleStep1(e) {
     // All message data extracted from the single fetch above
     var sender = mailMessage.getFrom();
     var to = Session.getActiveUser().getEmail();
-    const domainNameTo = to.split("@")[1];
+    const domainNameTo = normalizeAccountDomain(to.split("@")[1]);
     const senderDomain = sender.split("@")[1].replace('>', '');
     console.log('handleStep1|context|', { to, domainNameTo, sender, senderDomain });
 
@@ -928,7 +932,7 @@ async function handleStep2(e) {
     const StatusMessage = messageIdOrg.split("@")[0].replace('<', '');
 
     var to = Session.getActiveUser().getEmail();
-    const domainNameTo = to.split("@")[1];
+    const domainNameTo = normalizeAccountDomain(to.split("@")[1]);
     console.log('handleStep2|context|', { to, domainNameTo, sender, subject, message_google, StatusMessage });
 
     const awsRegion = await region(domainNameTo);
@@ -1026,7 +1030,7 @@ async function openLearnAddonLink() {
   console.log('openLearnAddonLink|called!');
   try {
     let email = Session.getActiveUser().getEmail();
-    let currentDomain = email.split("@")[1];
+    let currentDomain = normalizeAccountDomain(email.split("@")[1]);
     const { aws_region: reg } = await region(currentDomain);
     console.log('openLearnAddonLink|', { reg, currentDomain });
     await callErrorReportingApi("Dummy onboarding " + reg, " ");

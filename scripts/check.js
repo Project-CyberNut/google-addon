@@ -68,6 +68,12 @@ if (loaded) {
   for (const f of sources) for (const m of read(f).matchAll(/\bt\("([^"]+)"/g)) used.add(m[1]);
   for (const k of used) if (!en.has(k)) fail(`t("${k}") used but not in MESSAGES.en`);
 
+  // 3a. only cybernut.onmicrosoft.com is lowercased before the API calls
+  const nd = sandbox.normalizeAccountDomain;
+  for (const [input, want] of [["CyberNut.onmicrosoft.com", "cybernut.onmicrosoft.com"], ["cybernut.onmicrosoft.com", "cybernut.onmicrosoft.com"], ["Acme.org", "Acme.org"], ["Other.onmicrosoft.com", "Other.onmicrosoft.com"], [undefined, undefined]]) {
+    if (nd(input) !== want) fail(`normalizeAccountDomain(${input}) returned ${nd(input)}, expected ${want}`);
+  }
+
   // 3b. language page (CYB4-2596, v 2.5.17): radio list only, no version line
   const i18nSrc = read("i18n.gs");
   const selectorFn = i18nSrc.slice(i18nSrc.indexOf("function buildLanguageSelector"), i18nSrc.indexOf("async function onLanguageChange"));
